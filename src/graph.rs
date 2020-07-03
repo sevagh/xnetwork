@@ -1,5 +1,6 @@
-use slotmap::{DefaultKey, SecondaryMap, SlotMap, SparseSecondaryMap};
 use crate::bfs::BFS;
+use slotmap::{DefaultKey, SecondaryMap, SlotMap, SparseSecondaryMap};
+use std::fmt::Debug;
 
 #[derive(Debug)]
 pub(crate) struct Edge {
@@ -9,14 +10,14 @@ pub(crate) struct Edge {
 }
 
 #[derive(Debug)]
-pub struct Graph<T: Copy, U> {
+pub struct Graph<T: Copy + Debug, U: Debug> {
     pub(crate) nodes: SlotMap<DefaultKey, T>,
     pub(crate) node_infos: SecondaryMap<DefaultKey, U>,
-    pub(crate) edges: SparseSecondaryMap<DefaultKey, Edge>,
+    pub(crate) edges: SparseSecondaryMap<DefaultKey, Vec<Edge>>,
     pub(crate) directed: bool,
 }
 
-impl<T: Copy, U> Graph<T, U> {
+impl<T: Copy + Debug, U: Debug> Graph<T, U> {
     fn new(directed: bool) -> Self {
         Graph {
             nodes: SlotMap::new(),
@@ -43,15 +44,48 @@ impl<T: Copy, U> Graph<T, U> {
     }
 
     pub fn add_edge(&mut self, src: DefaultKey, dst: DefaultKey, weight: Option<f64>) {
+        let new_edge = Edge {
+            src,
+            dst,
+            w: weight,
+        };
+
+        match self.edges.get_mut(src) {
+            Some(edge_list) => {
+                edge_list.push(new_edge);
+            }
+            None => {
+                self.edges.insert(src, vec![new_edge]);
+            }
+        }
+
         if self.directed {
-            self.edges.insert(src, Edge { src: src, dst: dst, w: weight });
-        } else {
-            self.edges.insert(src, Edge { src: src, dst: dst, w: weight });
-            self.edges.insert(dst, Edge { src: src, dst: dst, w: weight });
+            let reverse = Edge {
+                src: dst,
+                dst: src,
+                w: weight,
+            };
+
+            match self.edges.get_mut(dst) {
+                Some(ref mut edge_list) => {
+                    edge_list.push(reverse);
+                }
+                None => {
+                    self.edges.insert(dst, vec![reverse]);
+                }
+            }
         }
     }
 
-    pub fn bfs<'a>(&'a self) -> BFS<'a, T, U> {
+    pub fn print_info(&self, n: DefaultKey) {
+        println!(
+            "key: {:#?}, value: {:#?}",
+            self.nodes.get(n),
+            self.node_infos.get(n)
+        );
+    }
+
+    pub fn bfs(&self) -> BFS<T, U> {
         BFS::for_graph(self)
     }
 }
@@ -103,7 +137,7 @@ mod tests {
             _v: &'a str,
         };
 
-        let gnog = GraphNodeNoGraph{
+        let gnog = GraphNodeNoGraph {
             _k: 0,
             _v: "Tristram",
         };

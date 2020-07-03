@@ -1,32 +1,26 @@
-use crate::graph::{Graph, Edge};
+use crate::graph::{Edge, Graph};
 use slotmap::{DefaultKey, SecondaryMap};
-use std::collections::VecDeque;
+use std::{collections::VecDeque, fmt::Debug};
 
 #[derive(Debug)]
-pub struct IterNode<'a, T: 'a + Copy, U: 'a> {
-    key: &'a T,
-    extra: &'a U,
-}
-
-#[derive(Debug)]
-pub struct BFS<'a, T: Copy, U> {
+pub struct BFS<'a, T: Copy + Debug, U: Debug> {
     graph: &'a Graph<T, U>,
     processed: SecondaryMap<DefaultKey, bool>,
     discovered: SecondaryMap<DefaultKey, bool>,
     parent: SecondaryMap<DefaultKey, Option<DefaultKey>>,
     queue: VecDeque<DefaultKey>,
-    nodes_to_yield: VecDeque<DefaultKey>,
+    to_yield: VecDeque<DefaultKey>,
 }
 
-impl <'a, T: Copy, U> BFS<'a, T, U> {
+impl<'a, T: Copy + Debug, U: Debug> BFS<'a, T, U> {
     pub(crate) fn for_graph(g: &'a Graph<T, U>) -> Self {
-        let mut bfs = BFS{
+        let mut bfs = BFS {
             graph: g,
             processed: SecondaryMap::new(),
             discovered: SecondaryMap::new(),
             parent: SecondaryMap::new(),
             queue: VecDeque::with_capacity(g.nodes.len()),
-            nodes_to_yield: VecDeque::with_capacity(g.nodes.len()),
+            to_yield: VecDeque::with_capacity(g.nodes.len()),
         };
         bfs.init();
         bfs
@@ -39,14 +33,14 @@ impl <'a, T: Copy, U> BFS<'a, T, U> {
             self.queue.push_back(x);
         }
 
+        if self.queue.is_empty() {
+            return;
+        }
+
         for k in self.graph.nodes.keys() {
             self.processed.insert(k, false);
             self.discovered.insert(k, false);
             self.parent.insert(k, None);
-        }
-
-        if self.queue.is_empty() {
-            return;
         }
 
         self.discovered.insert(self.queue[0], true);
@@ -54,66 +48,52 @@ impl <'a, T: Copy, U> BFS<'a, T, U> {
         let mut node: DefaultKey;
         let mut dest_node: DefaultKey;
 
-        let mut possible_edge: Option<&Edge>;
-
         while !self.queue.is_empty() {
             node = self.queue.pop_front().unwrap();
 
             self.process_node_early(node);
             self.processed.insert(node, true);
 
-            possible_edge = self.graph.edges.get(node);
+            if let Some(edge_list) = self.graph.edges.get(node) {
+                for edge in edge_list.iter() {
+                    assert!(edge.src == node);
 
-            while let Some(edge) = possible_edge {
-                assert!(edge.src == node);
+                    // do stuff with edge here
+                    //possible_edge =
 
-                // do stuff with edge here
-                //possible_edge = 
+                    dest_node = edge.dst;
 
-                dest_node = edge.dst;
+                    // unwrap because i don't expect this to not be set
+                    if !self.processed.get(dest_node).unwrap() || self.graph.directed {
+                        self.process_edge(edge);
+                    }
 
-                // unwrap because i don't expect this to not be set
-                if !self.processed.get(dest_node).unwrap() || self.graph.directed {
-                    self.process_edge(edge);
+                    // unwrap because i don't expect this to not be set
+                    if !self.discovered.get(dest_node).unwrap() {
+                        self.queue.push_back(dest_node);
+                        self.discovered.insert(dest_node, true);
+                        self.parent.insert(dest_node, Some(node));
+                    }
                 }
-
-                // unwrap because i don't expect this to not be set
-                if !self.discovered.get(dest_node).unwrap() {
-                    self.queue.push_back(dest_node);
-                    self.discovered.insert(dest_node, true);
-                    self.parent.insert(dest_node, Some(node));
-                }
-
-                possible_edge = self.graph.edges.get(dest_node);
             }
             self.process_node_late(node);
         }
     }
 
     fn process_node_early(&mut self, node: DefaultKey) {
-        println!("processed node {:#?}", node);
-        self.nodes_to_yield.push_back(node);
+        self.to_yield.push_back(node);
     }
 
-    fn process_node_late(&mut self, _node: DefaultKey) {
-    }
+    fn process_node_late(&mut self, _node: DefaultKey) {}
 
-    fn process_edge(&mut self, edge: &Edge) {
-        println!("processed edge {:#?}", edge);
-    }
+    fn process_edge(&mut self, _edge: &Edge) {}
 }
 
-impl <'a, T: Copy, U> Iterator for BFS<'a, T, U> {
-    type Item = &'a IterNode<'a, T, U>;
+impl<'a, T: Copy + Debug, U: Debug> Iterator for BFS<'a, T, U> {
+    type Item = DefaultKey;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(ret_node) = self.nodes_to_yield.pop_back() {
-            Some(IterNode{
-                key: self.graph.nodes.get(ret_node).unwrap(),
-                extra: self.graph.node_infos.get(ret_node).unwrap(),
-            });
-        }
-        None
+        self.to_yield.pop_front()
     }
 }
 
@@ -131,12 +111,50 @@ mod tests {
 
         g.add_edge(tristram, alpha_centauri, None);
 
-        let mut bfs = g.bfs();
+        let bfs = g.bfs();
 
-        for visited_node in bfs.next() {
+        for visited_node in bfs {
             println!("bfs visited node: {:#?}", visited_node);
         }
 
         assert_eq!(2 + 2, 4);
+    }
+
+    #[test]
+    fn real_bfs() {
+        let mut g = Graph::<i32, &str>::new_undirected();
+
+        let a = g.add_node(0, Some("a"));
+        let b = g.add_node(1, Some("b"));
+        let c = g.add_node(2, Some("c"));
+
+        g.add_edge(a, c, None);
+        g.add_edge(c, b, None);
+
+        let bfs = g.bfs();
+
+        for visited_node in bfs {
+            println!("bfs visited node: {:#?}", visited_node);
+            g.print_info(visited_node);
+        }
+    }
+
+    #[test]
+    fn real_bfs_asserts() {
+        let mut g = Graph::<i32, &str>::new_undirected();
+
+        let a = g.add_node(0, Some("a"));
+        let b = g.add_node(1, Some("b"));
+        let c = g.add_node(2, Some("c"));
+
+        g.add_edge(a, c, None);
+        g.add_edge(c, b, None);
+
+        let mut bfs = g.bfs();
+
+        assert_eq!(bfs.next(), Some(a));
+        assert_eq!(bfs.next(), Some(c));
+        assert_eq!(bfs.next(), Some(b));
+        assert_eq!(bfs.next(), None);
     }
 }

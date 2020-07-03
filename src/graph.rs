@@ -2,17 +2,18 @@ use slotmap::{DefaultKey, SecondaryMap, SlotMap, SparseSecondaryMap};
 use crate::bfs::BFS;
 
 #[derive(Debug)]
-struct Edge {
-    e: DefaultKey,
-    w: Option<f64>,
+pub(crate) struct Edge {
+    pub(crate) src: DefaultKey,
+    pub(crate) dst: DefaultKey,
+    pub(crate) w: Option<f64>,
 }
 
 #[derive(Debug)]
 pub struct Graph<T: Copy, U> {
-    nodes: SlotMap<DefaultKey, T>,
-    node_infos: SecondaryMap<DefaultKey, U>,
-    edges: SparseSecondaryMap<DefaultKey, Edge>,
-    directed: bool,
+    pub(crate) nodes: SlotMap<DefaultKey, T>,
+    pub(crate) node_infos: SecondaryMap<DefaultKey, U>,
+    pub(crate) edges: SparseSecondaryMap<DefaultKey, Edge>,
+    pub(crate) directed: bool,
 }
 
 impl<T: Copy, U> Graph<T, U> {
@@ -43,17 +44,15 @@ impl<T: Copy, U> Graph<T, U> {
 
     pub fn add_edge(&mut self, src: DefaultKey, dst: DefaultKey, weight: Option<f64>) {
         if self.directed {
-            self.edges.insert(src, Edge { e: dst, w: weight });
+            self.edges.insert(src, Edge { src: src, dst: dst, w: weight });
         } else {
-            self.edges.insert(src, Edge { e: dst, w: weight });
-            self.edges.insert(dst, Edge { e: src, w: weight });
+            self.edges.insert(src, Edge { src: src, dst: dst, w: weight });
+            self.edges.insert(dst, Edge { src: src, dst: dst, w: weight });
         }
     }
 
     pub fn bfs<'a>(&'a self) -> BFS<'a, T, U> {
-        BFS{
-            inner: self,
-        }
+        BFS::for_graph(self)
     }
 }
 

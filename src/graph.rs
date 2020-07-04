@@ -1,4 +1,4 @@
-use crate::bfs::BFS;
+use crate::{bfs::BFS, dfs::DFS};
 use slotmap::{DefaultKey, SecondaryMap, SlotMap, SparseSecondaryMap};
 use std::fmt::Debug;
 
@@ -108,6 +108,10 @@ impl<T: Copy + Debug, U: Debug> Graph<T, U> {
 
     pub fn bfs(&self) -> BFS<T, U> {
         BFS::for_graph(self)
+    }
+
+    pub fn dfs(&self) -> DFS<T, U> {
+        DFS::for_graph(self)
     }
 }
 

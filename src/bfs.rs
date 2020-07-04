@@ -7,6 +7,9 @@ pub struct BFS<'a, T: Copy + Debug, U: Debug> {
     graph: &'a Graph<T, U>,
 
     // could these all be one giant SecondaryMap with a "NodeMeta"/"BFSInfo" struct stored?
+    // probably without making my life unhappier w.r.t. ownership
+    // and iterating over some members of processed/discovered/colors/parents while modifying
+    // others
     processed: SecondaryMap<DefaultKey, bool>,
     discovered: SecondaryMap<DefaultKey, bool>,
     colors: SecondaryMap<DefaultKey, Color>,
@@ -61,7 +64,7 @@ impl<'a, T: Copy + Debug, U: Debug> BFS<'a, T, U> {
         }
     }
 
-    fn do_bfs(&mut self, start: DefaultKey) {
+    pub fn do_bfs(&mut self, start: DefaultKey) {
         self.queue.push_back(start);
         self.discovered.insert(self.queue[0], true);
 

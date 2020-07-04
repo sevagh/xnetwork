@@ -4,7 +4,6 @@ use std::fmt::Debug;
 
 #[derive(Debug)]
 pub(crate) struct Edge {
-    pub(crate) src: DefaultKey,
     pub(crate) dst: DefaultKey,
     pub(crate) w: Option<f64>,
 }
@@ -27,6 +26,14 @@ impl<T: Copy + Debug, U: Debug> Graph<T, U> {
         }
     }
 
+    pub fn n_edges(&self) -> usize {
+        let mut ret: usize = 0;
+        for edge_list in self.edges.values() {
+            ret += edge_list.len();
+        }
+        ret
+    }
+
     pub fn new_directed() -> Self {
         Self::new(true)
     }
@@ -44,11 +51,7 @@ impl<T: Copy + Debug, U: Debug> Graph<T, U> {
     }
 
     pub fn add_edge(&mut self, src: DefaultKey, dst: DefaultKey, weight: Option<f64>) {
-        let new_edge = Edge {
-            src,
-            dst,
-            w: weight,
-        };
+        let new_edge = Edge { dst, w: weight };
 
         match self.edges.get_mut(src) {
             Some(edge_list) => {
@@ -59,15 +62,14 @@ impl<T: Copy + Debug, U: Debug> Graph<T, U> {
             }
         }
 
-        if self.directed {
+        if !self.directed {
             let reverse = Edge {
-                src: dst,
                 dst: src,
                 w: weight,
             };
 
             match self.edges.get_mut(dst) {
-                Some(ref mut edge_list) => {
+                Some(edge_list) => {
                     edge_list.push(reverse);
                 }
                 None => {
@@ -79,7 +81,7 @@ impl<T: Copy + Debug, U: Debug> Graph<T, U> {
 
     pub fn print_info(&self, n: DefaultKey) {
         println!(
-            "key: {:#?}, value: {:#?}",
+            "key: {:?}, value: {:?}",
             self.nodes.get(n),
             self.node_infos.get(n)
         );

@@ -1,6 +1,6 @@
 use crate::{dfs::NULL_KEY, graph::Graph};
 use slotmap::{DefaultKey, SecondaryMap};
-use std::{collections::VecDeque, fmt::Debug, error, fmt, result};
+use std::{cmp::Ord, collections::VecDeque, fmt::Debug, error, fmt, result};
 
 #[derive(Debug, PartialEq)]
 enum EdgeKind {
@@ -11,18 +11,18 @@ enum EdgeKind {
     Cross,
 }
 
-type TopologicalSortResult<T> = result::Result<T, TopologicalSortError>;
+type LexicographicalTopologicalSortResult<T> = result::Result<T, LexicographicalTopologicalSortError>;
 
 #[derive(Debug)]
-pub struct TopologicalSortError;
+pub struct LexicographicalTopologicalSortError;
 
-impl fmt::Display for TopologicalSortError {
+impl fmt::Display for LexicographicalTopologicalSortError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "not a dag")
     }
 }
 
-impl error::Error for TopologicalSortError {
+impl error::Error for LexicographicalTopologicalSortError {
     fn description(&self) -> &str {
         "not a dag"
     }
@@ -33,8 +33,8 @@ impl error::Error for TopologicalSortError {
 }
 
 #[derive(Debug)]
-pub struct TopologicalSort<'a, T: Copy + Debug, U: Debug> {
-    graph: &'a Graph<T, U>,
+pub struct LexicographicalTopologicalSort<'a, T: Copy + Debug + Ord, U: Debug> {
+    graph: &'a mut Graph<T, U>,
 
     processed: SecondaryMap<DefaultKey, bool>,
     discovered: SecondaryMap<DefaultKey, bool>,
@@ -48,9 +48,9 @@ pub struct TopologicalSort<'a, T: Copy + Debug, U: Debug> {
     finished: bool,
 }
 
-impl<'a, T: Copy + Debug, U: Debug> TopologicalSort<'a, T, U> {
-    pub(crate) fn for_graph(g: &'a Graph<T, U>) -> Self {
-        let mut topological_sort = TopologicalSort {
+impl<'a, T: Copy + Debug + Ord, U: Debug> LexicographicalTopologicalSort<'a, T, U> {
+    pub(crate) fn for_graph(g: &'a mut Graph<T, U>) -> Self {
+        let mut lexicographical_topological_sort = LexicographicalTopologicalSort {
             graph: g,
             processed: SecondaryMap::with_capacity(g.nodes.len()),
             discovered: SecondaryMap::with_capacity(g.nodes.len()),
@@ -62,8 +62,8 @@ impl<'a, T: Copy + Debug, U: Debug> TopologicalSort<'a, T, U> {
             time: 0,
             finished: false,
         };
-        topological_sort.init();
-        topological_sort
+        lexicographical_topological_sort.init();
+        lexicographical_topological_sort
     }
 
     fn init(&mut self) {
@@ -74,7 +74,7 @@ impl<'a, T: Copy + Debug, U: Debug> TopologicalSort<'a, T, U> {
         }
     }
 
-    pub fn do_topological_sort(&mut self, node: DefaultKey) -> TopologicalSortResult<()> {
+    pub fn do_topological_sort(&mut self, node: DefaultKey) -> LexicographicalTopologicalSortResult<()> {
         if self.finished {
             return Ok(());
         }
@@ -86,18 +86,29 @@ impl<'a, T: Copy + Debug, U: Debug> TopologicalSort<'a, T, U> {
 
         self.process_node_early(node);
 
-        if let Some(edge_list) = self.graph.edges.get(node) {
+        if let Some(edge_list) = self.graph.edges.get_mut(node) {
+            println!("\n");
+            println!("edge list PRE-lexicographical sort: {:?}", edge_list);
+
+            edge_list.sort_by_cached_key(|e| {
+                self.graph.nodes.get(e.dst).unwrap()
+            });
+
+            println!("edge list POST-lexicographical sort: {:?}", edge_list);
+
             for edge in edge_list.iter() {
+                self.graph.print_info(edge.dst);
+
                 if !self.discovered.get(edge.dst).unwrap() {
                     self.parent.insert(edge.dst, node);
 
                     if self.process_edge(node, edge.dst).is_err() {
-                        return Err(TopologicalSortError);
+                        return Err(LexicographicalTopologicalSortError);
                     }
 
-                    // make recursive topological_sort explicit with a stack
+                    // make recursive lexicographical_topological_sort explicit with a stack
                     if self.do_topological_sort(edge.dst).is_err() {
-                        return Err(TopologicalSortError);
+                        return Err(LexicographicalTopologicalSortError);
                     }
 
                     continue;
@@ -106,7 +117,7 @@ impl<'a, T: Copy + Debug, U: Debug> TopologicalSort<'a, T, U> {
                     || self.graph.directed
                 {
                     if self.process_edge(node, edge.dst).is_err() {
-                        return Err(TopologicalSortError);
+                        return Err(LexicographicalTopologicalSortError);
                     }
                     if self.finished {
                         return Ok(());
@@ -126,15 +137,15 @@ impl<'a, T: Copy + Debug, U: Debug> TopologicalSort<'a, T, U> {
     fn process_node_early(&mut self, _node: DefaultKey) {}
 
     // notice the switch from enqueueing the node early in dfs
-    // vs late in topological sort
+    // vs late in lexicographical_topological sort
     fn process_node_late(&mut self, node: DefaultKey) {
         self.to_yield.push_back(node);
     }
 
-    fn process_edge(&mut self, src: DefaultKey, dst: DefaultKey) -> TopologicalSortResult<()> {
+    fn process_edge(&mut self, src: DefaultKey, dst: DefaultKey) -> LexicographicalTopologicalSortResult<()> {
         // check for back edges
         if self.classify_edge(src, dst) == EdgeKind::Back {
-            return Err(TopologicalSortError);
+            return Err(LexicographicalTopologicalSortError);
         }
         Ok(())
     }
@@ -158,7 +169,7 @@ impl<'a, T: Copy + Debug, U: Debug> TopologicalSort<'a, T, U> {
     }
 }
 
-impl<'a, T: Copy + Debug, U: Debug> Iterator for TopologicalSort<'a, T, U> {
+impl<'a, T: Copy + Debug + Ord, U: Debug> Iterator for LexicographicalTopologicalSort<'a, T, U> {
     type Item = DefaultKey;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -171,33 +182,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn wont_topological_sort_undirected() {
-        let g = Graph::<i32, &str>::new_undirected();
-        assert!(g.topological_sort().is_none());
-    }
-
-    #[test]
-    fn basic_topological_sort() {
-        let mut g = Graph::<i32, &str>::new_directed();
-
-        let tristram = g.add_node(0, Some("Tristram"));
-        let alpha_centauri = g.add_node(1, Some("AlphaCentauri"));
-        let _saturn = g.add_node(2, Some("Saturn"));
-
-        g.add_edge(tristram, alpha_centauri, None);
-
-        let mut topological_sort = g.topological_sort().unwrap();
-        topological_sort.do_topological_sort(tristram).unwrap();
-
-        for visited_node in topological_sort {
-            println!("topological_sort visited node: {:#?}", visited_node);
-        }
-
-        assert_eq!(2 + 2, 4);
-    }
-
-    #[test]
-    fn real_topological_sort() {
+    fn real_lexicographical_topological_sort() {
         // testcase from pp179 of skiena (figure 5.15)
         let mut gr = Graph::<i32, &str>::new_directed();
 
@@ -219,15 +204,15 @@ mod tests {
         gr.add_edge(e, d, None);
         gr.add_edge(f, e, None);
 
-        let mut topological_sort = gr.topological_sort().unwrap();
-        topological_sort.do_topological_sort(g).unwrap();
+        let mut lexicographical_topological_sort = gr.lexicographical_topological_sort().unwrap();
+        lexicographical_topological_sort.do_topological_sort(g).unwrap();
 
-        assert_eq!(topological_sort.next(), Some(g));
-        assert_eq!(topological_sort.next(), Some(a));
-        assert_eq!(topological_sort.next(), Some(b));
-        assert_eq!(topological_sort.next(), Some(c));
-        assert_eq!(topological_sort.next(), Some(f));
-        assert_eq!(topological_sort.next(), Some(e));
-        assert_eq!(topological_sort.next(), Some(d));
+        assert_eq!(lexicographical_topological_sort.next(), Some(g));
+        assert_eq!(lexicographical_topological_sort.next(), Some(a));
+        assert_eq!(lexicographical_topological_sort.next(), Some(b));
+        assert_eq!(lexicographical_topological_sort.next(), Some(c));
+        assert_eq!(lexicographical_topological_sort.next(), Some(e));
+        assert_eq!(lexicographical_topological_sort.next(), Some(f));
+        assert_eq!(lexicographical_topological_sort.next(), Some(d));
     }
 }

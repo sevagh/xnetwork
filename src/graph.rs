@@ -1,12 +1,13 @@
 use crate::{
     bfs::BFS,
     dag::TopologicalSort,
+    dag_ord::LexicographicalTopologicalSort,
     dfs::{DFS, NULL_KEY},
 };
 use slotmap::{DefaultKey, SecondaryMap, SlotMap, SparseSecondaryMap};
 use std::fmt::Debug;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Edge {
     pub(crate) dst: DefaultKey,
     pub(crate) w: Option<f64>,
@@ -135,6 +136,17 @@ impl<T: Copy + Debug, U: Debug> Graph<T, U> {
         }
     }
 }
+
+impl<T: Copy + Debug + Ord, U: Debug> Graph<T, U> {
+    pub fn lexicographical_topological_sort(&mut self) -> Option<LexicographicalTopologicalSort<T, U>> {
+        if self.directed {
+            Some(LexicographicalTopologicalSort::for_graph(self))
+        } else {
+            None
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod tests {

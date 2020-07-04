@@ -1,6 +1,6 @@
 use crate::{dfs::NULL_KEY, graph::Graph};
 use slotmap::{DefaultKey, SecondaryMap};
-use std::{collections::VecDeque, fmt::Debug, error, fmt, result};
+use std::{collections::VecDeque, error, fmt, fmt::Debug, result};
 
 #[derive(Debug, PartialEq)]
 enum EdgeKind {
@@ -131,7 +131,7 @@ impl<'a, T: Copy + Debug, U: Debug> TopologicalSort<'a, T, U> {
         self.to_yield.push_back(node);
     }
 
-    fn process_edge(&mut self, src: DefaultKey, dst: DefaultKey) -> TopologicalSortResult<()> {
+    fn process_edge(&self, src: DefaultKey, dst: DefaultKey) -> TopologicalSortResult<()> {
         // check for back edges
         if self.classify_edge(src, dst) == EdgeKind::Back {
             return Err(TopologicalSortError);

@@ -54,6 +54,10 @@ impl<T: Copy + Debug, U: Debug> Graph<T, U> {
         self.nodes.len()
     }
 
+    pub fn n_nodes_mut(&mut self) -> usize {
+        self.nodes.len()
+    }
+
     pub fn degree(&self, node: DefaultKey) -> usize {
         if let Some(deg) = self.degrees.get(node) {
             return *deg;
@@ -138,7 +142,9 @@ impl<T: Copy + Debug, U: Debug> Graph<T, U> {
 }
 
 impl<T: Copy + Debug + Ord, U: Debug> Graph<T, U> {
-    pub fn lexicographical_topological_sort(&mut self) -> Option<LexicographicalTopologicalSort<T, U>> {
+    pub fn lexicographical_topological_sort(
+        &mut self,
+    ) -> Option<LexicographicalTopologicalSort<T, U>> {
         if self.directed {
             Some(LexicographicalTopologicalSort::for_graph(self))
         } else {
@@ -146,7 +152,6 @@ impl<T: Copy + Debug + Ord, U: Debug> Graph<T, U> {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {

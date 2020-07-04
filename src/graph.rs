@@ -1,4 +1,7 @@
-use crate::{bfs::BFS, dfs::DFS};
+use crate::{
+    bfs::BFS,
+    dfs::{DFS, NULL_KEY},
+};
 use slotmap::{DefaultKey, SecondaryMap, SlotMap, SparseSecondaryMap};
 use std::fmt::Debug;
 
@@ -15,6 +18,15 @@ pub struct Graph<T: Copy + Debug, U: Debug> {
     pub(crate) edges: SparseSecondaryMap<DefaultKey, Vec<Edge>>,
     pub(crate) degrees: SparseSecondaryMap<DefaultKey, usize>,
     pub(crate) directed: bool,
+}
+
+pub fn find_path(src: DefaultKey, dst: DefaultKey, parents: &SecondaryMap<DefaultKey, DefaultKey>) {
+    if src == dst || dst == *NULL_KEY {
+        println!("start: {:?}", src);
+    } else {
+        find_path(src, *(parents.get(dst).unwrap()), parents);
+        println!(" end: {:?}", dst);
+    }
 }
 
 impl<T: Copy + Debug, U: Debug> Graph<T, U> {

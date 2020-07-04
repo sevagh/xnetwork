@@ -1,9 +1,9 @@
-use crate::graph::Graph;
+use crate::graph::{find_path, Graph};
 use slotmap::{DefaultKey, SecondaryMap};
 use std::{collections::VecDeque, fmt::Debug};
 
 lazy_static! {
-    static ref NULL_KEY: DefaultKey = DefaultKey::default();
+    pub(crate) static ref NULL_KEY: DefaultKey = DefaultKey::default();
 }
 
 #[derive(Debug)]
@@ -19,6 +19,7 @@ pub struct DFS<'a, T: Copy + Debug, U: Debug> {
     to_yield: VecDeque<DefaultKey>,
     n_edges: usize,
     time: usize,
+    finished: bool,
 }
 
 impl<'a, T: Copy + Debug, U: Debug> DFS<'a, T, U> {
@@ -33,6 +34,7 @@ impl<'a, T: Copy + Debug, U: Debug> DFS<'a, T, U> {
             to_yield: VecDeque::with_capacity(g.nodes.len()),
             n_edges: 0,
             time: 0,
+            finished: false,
         };
         dfs.init();
         dfs
@@ -47,6 +49,10 @@ impl<'a, T: Copy + Debug, U: Debug> DFS<'a, T, U> {
     }
 
     pub fn do_dfs(&mut self, node: DefaultKey) {
+        if self.finished {
+            return;
+        }
+
         self.discovered.insert(node, true);
         self.time += 1;
 
@@ -68,6 +74,9 @@ impl<'a, T: Copy + Debug, U: Debug> DFS<'a, T, U> {
                     || self.graph.directed
                 {
                     self.process_edge(node, edge.dst);
+                    if self.finished {
+                        return;
+                    }
                 }
             }
         }
@@ -84,7 +93,20 @@ impl<'a, T: Copy + Debug, U: Debug> DFS<'a, T, U> {
 
     fn process_node_late(&mut self, _node: DefaultKey) {}
 
-    fn process_edge(&mut self, _src: DefaultKey, _dst: DefaultKey) {
+    fn process_edge(&mut self, src: DefaultKey, dst: DefaultKey) {
+        // check for back edges
+        if *self.discovered.get(dst).unwrap() && *(self.parent.get(src).unwrap()) != dst {
+            eprintln!(
+                "[INFO] found cycle {:?}, {:?}",
+                self.graph.nodes.get(dst).unwrap(),
+                self.graph.nodes.get(src).unwrap()
+            );
+            find_path(dst, src, &self.parent);
+
+            if self.n_edges == self.graph.n_edges() {
+                self.finished = true;
+            }
+        }
         self.n_edges += 1;
     }
 }
@@ -236,6 +258,11 @@ mod tests {
         let mut dfs = gr.dfs();
         dfs.do_dfs(a);
 
+        //for visited in dfs {
+        //    println!("visited {:?}", visited);
+        //    gr.print_info(visited);
+        //}
+
         assert_eq!(dfs.next(), Some(a));
         assert_eq!(dfs.next(), Some(b));
         assert_eq!(dfs.next(), Some(d));
@@ -243,5 +270,61 @@ mod tests {
         assert_eq!(dfs.next(), Some(e));
         assert_eq!(dfs.next(), Some(c));
         assert_eq!(dfs.next(), Some(g));
+    }
+
+    #[test]
+    fn dfs_avoid_cycles() {
+        let mut g1 = Graph::<i32, &str>::new_undirected();
+
+        let a1 = g1.add_node(0, Some("a"));
+        let b1 = g1.add_node(1, Some("b"));
+        let c1 = g1.add_node(2, Some("c"));
+
+        g1.add_edge(a1, b1, None);
+        g1.add_edge(b1, c1, None);
+        g1.add_edge(c1, a1, None);
+
+        let mut dfs1 = g1.dfs();
+        dfs1.do_dfs(a1);
+
+        assert_eq!(dfs1.next(), Some(a1));
+        assert_eq!(dfs1.next(), Some(b1));
+        assert_eq!(dfs1.next(), Some(c1));
+        assert_eq!(dfs1.next(), None);
+        assert_eq!(dfs1.n_edges, g1.n_edges());
+        println!(
+            "graph edges 1: {}, dfs n_edges: {}",
+            g1.n_edges(),
+            dfs1.n_edges
+        );
+
+        println!("\n\n");
+
+        let mut g2 = Graph::<i32, &str>::new_undirected();
+
+        let a2 = g2.add_node(0, Some("a"));
+        let b2 = g2.add_node(2, Some("b"));
+        let c2 = g2.add_node(3, Some("c"));
+        let d2 = g2.add_node(4, Some("d"));
+
+        g2.add_edge(a2, b2, None);
+        g2.add_edge(b2, c2, None);
+        g2.add_edge(c2, a2, None);
+        g2.add_edge(a2, d2, None);
+
+        let mut dfs2 = g2.dfs();
+        dfs2.do_dfs(a2);
+
+        assert_eq!(dfs2.next(), Some(a2));
+        assert_eq!(dfs2.next(), Some(b2));
+        assert_eq!(dfs2.next(), Some(c2));
+        assert_eq!(dfs2.next(), Some(d2));
+        assert_eq!(dfs2.next(), None);
+        assert_eq!(dfs2.n_edges, g2.n_edges());
+        println!(
+            "graph edges 2: {}, dfs n_edges: {}",
+            g2.n_edges(),
+            dfs2.n_edges
+        );
     }
 }

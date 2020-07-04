@@ -140,7 +140,7 @@ impl<'a, T: Copy + Debug, U: Debug> BFS<'a, T, U> {
         if self.colors.get(src).unwrap() == self.colors.get(dst).unwrap() {
             self.bipartite = false;
             eprintln!(
-                "[WARN] not bipartite due to edge {:#?}, {:#?}",
+                "[WARN] not bipartite due to edge {:?}, {:?}",
                 self.graph.nodes.get(src).unwrap(),
                 self.graph.nodes.get(dst).unwrap()
             );

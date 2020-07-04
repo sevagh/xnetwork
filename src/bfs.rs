@@ -276,7 +276,7 @@ mod tests {
         assert_eq!(b.connected_components(), 2);
 
         // check if we processed every edge
-        assert_eq!(g.n_edges() / 2, b.n_edges());
+        assert_eq!(g.n_edges(), b.n_edges());
     }
 
     #[test]
@@ -300,7 +300,7 @@ mod tests {
         assert!(b.two_color());
 
         // check if we processed every edge
-        assert_eq!(g.n_edges() / 2, b.n_edges());
+        assert_eq!(g.n_edges(), b.n_edges());
 
         for (k, v) in b.colors.iter() {
             println!("node: {:#?}, color: {:#?}", b.graph.nodes.get(k), v);
@@ -329,7 +329,7 @@ mod tests {
         assert!(!b.two_color());
 
         // check if we processed every edge
-        assert_eq!(g.n_edges() / 2, b.n_edges());
+        assert_eq!(g.n_edges(), b.n_edges());
 
         for (k, v) in b.colors.iter() {
             println!("node: {:?}, color: {:?}", b.graph.nodes.get(k), v);

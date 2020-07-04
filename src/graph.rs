@@ -13,6 +13,7 @@ pub struct Graph<T: Copy + Debug, U: Debug> {
     pub(crate) nodes: SlotMap<DefaultKey, T>,
     pub(crate) node_infos: SecondaryMap<DefaultKey, U>,
     pub(crate) edges: SparseSecondaryMap<DefaultKey, Vec<Edge>>,
+    pub(crate) degrees: SparseSecondaryMap<DefaultKey, usize>,
     pub(crate) directed: bool,
 }
 
@@ -22,16 +23,28 @@ impl<T: Copy + Debug, U: Debug> Graph<T, U> {
             nodes: SlotMap::new(),
             node_infos: SecondaryMap::new(),
             edges: SparseSecondaryMap::new(),
+            degrees: SparseSecondaryMap::new(),
             directed,
         }
     }
 
     pub fn n_edges(&self) -> usize {
         let mut ret: usize = 0;
-        for edge_list in self.edges.values() {
-            ret += edge_list.len();
+        for deg in self.degrees.values() {
+            ret += deg;
         }
         ret
+    }
+
+    pub fn n_nodes(&self) -> usize {
+        self.nodes.len()
+    }
+
+    pub fn degree(&self, node: DefaultKey) -> usize {
+        if let Some(deg) = self.degrees.get(node) {
+            return *deg;
+        }
+        0
     }
 
     pub fn new_directed() -> Self {
@@ -52,6 +65,12 @@ impl<T: Copy + Debug, U: Debug> Graph<T, U> {
 
     pub fn add_edge(&mut self, src: DefaultKey, dst: DefaultKey, weight: Option<f64>) {
         let new_edge = Edge { dst, w: weight };
+
+        if let Some(x) = self.degrees.get_mut(src) {
+            *x += 1;
+        } else {
+            self.degrees.insert(src, 1);
+        }
 
         match self.edges.get_mut(src) {
             Some(edge_list) => {
@@ -149,5 +168,28 @@ mod tests {
 
         //println!("g is {:#?}", g);
         assert_eq!(2 + 2, 4);
+    }
+
+    #[test]
+    fn test_outdegree_nnopes_nedges() {
+        let mut g = Graph::<i32, &str>::new_undirected();
+
+        let a = g.add_node(0, Some("a"));
+        let b = g.add_node(1, Some("b"));
+        let c = g.add_node(2, Some("c"));
+        let d = g.add_node(3, Some("d"));
+
+        g.add_edge(a, b, None);
+        g.add_edge(a, c, None);
+        g.add_edge(a, d, None);
+        g.add_edge(d, c, None);
+
+        assert_eq!(g.degree(a), 3);
+        assert_eq!(g.degree(d), 1);
+        assert_eq!(g.degree(b), 0);
+        assert_eq!(g.degree(c), 0);
+
+        assert_eq!(g.n_nodes(), 4);
+        assert_eq!(g.n_edges(), 4);
     }
 }

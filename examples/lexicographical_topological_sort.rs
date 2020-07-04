@@ -36,7 +36,7 @@ fn main() {
     simple_graph.add_edge(b, e, None);
     simple_graph.add_edge(f, e, None);
 
-    let mut sorted_order = simple_graph.topological_sort().unwrap();
+    let mut sorted_order = simple_graph.dfs();
     sorted_order.do_topological_sort(c).unwrap();
 
     println!("\n\n");

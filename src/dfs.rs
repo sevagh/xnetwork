@@ -1,9 +1,39 @@
 use crate::graph::{find_path, Graph};
 use slotmap::{DefaultKey, SecondaryMap};
-use std::{collections::VecDeque, fmt::Debug};
+use std::{collections::VecDeque, error, fmt, fmt::Debug, result};
 
 lazy_static! {
     pub(crate) static ref NULL_KEY: DefaultKey = DefaultKey::default();
+}
+
+#[derive(Debug, PartialEq)]
+enum EdgeKind {
+    Undefined,
+    Tree,
+    Back,
+    Forward,
+    Cross,
+}
+
+type TopologicalSortResult<T> = result::Result<T, TopologicalSortError>;
+
+#[derive(Debug)]
+pub struct TopologicalSortError;
+
+impl fmt::Display for TopologicalSortError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "not a dag")
+    }
+}
+
+impl error::Error for TopologicalSortError {
+    fn description(&self) -> &str {
+        "not a dag"
+    }
+
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        None
+    }
 }
 
 #[derive(Debug)]
@@ -40,6 +70,10 @@ impl<'a, T: Copy + Debug, U: Debug> DFS<'a, T, U> {
         dfs
     }
 
+    pub fn get_n_edges(&self) -> usize {
+        self.n_edges
+    }
+
     fn init(&mut self) {
         for k in self.graph.nodes.keys() {
             self.processed.insert(k, false);
@@ -48,9 +82,18 @@ impl<'a, T: Copy + Debug, U: Debug> DFS<'a, T, U> {
         }
     }
 
-    pub fn do_dfs(&mut self, node: DefaultKey) {
+    pub fn do_topological_sort(&mut self, _node: DefaultKey) -> TopologicalSortResult<()> {
+        for k in self.graph.nodes.keys() {
+            if !self.discovered.get(k).unwrap() && self.do_dfs(k).is_err() {
+                return Err(TopologicalSortError);
+            }
+        }
+        Ok(())
+    }
+
+    fn do_dfs(&mut self, node: DefaultKey) -> TopologicalSortResult<()> {
         if self.finished {
-            return;
+            return Ok(());
         }
 
         self.discovered.insert(node, true);
@@ -66,8 +109,10 @@ impl<'a, T: Copy + Debug, U: Debug> DFS<'a, T, U> {
                     self.parent.insert(edge.dst, node);
                     self.process_edge(node, edge.dst);
 
-                    // make recursive dfs explicit with a stack
-                    self.do_dfs(edge.dst);
+                    if self.do_dfs(edge.dst).is_err() {
+                        return Err(TopologicalSortError);
+                    }
+
                     continue;
                 } else if (!self.processed.get(edge.dst).unwrap()
                     && *(self.parent.get(node).unwrap()) != edge.dst)
@@ -75,7 +120,7 @@ impl<'a, T: Copy + Debug, U: Debug> DFS<'a, T, U> {
                 {
                     self.process_edge(node, edge.dst);
                     if self.finished {
-                        return;
+                        return Ok(());
                     }
                 }
             }
@@ -85,6 +130,8 @@ impl<'a, T: Copy + Debug, U: Debug> DFS<'a, T, U> {
         self.time += 1;
         self.exit_time.insert(node, self.time);
         self.processed.insert(node, true);
+
+        Ok(())
     }
 
     fn process_node_early(&mut self, node: DefaultKey) {
@@ -108,6 +155,24 @@ impl<'a, T: Copy + Debug, U: Debug> DFS<'a, T, U> {
             }
         }
         self.n_edges += 1;
+    }
+
+    fn classify_edge(&self, src: DefaultKey, dst: DefaultKey) -> EdgeKind {
+        if *(self.parent.get(dst).unwrap()) == src {
+            EdgeKind::Tree
+        } else if *(self.discovered.get(dst).unwrap()) && !*(self.processed.get(dst).unwrap()) {
+            EdgeKind::Back
+        } else if *(self.processed.get(dst).unwrap())
+            && (self.entry_time.get(dst).unwrap() > self.entry_time.get(src).unwrap())
+        {
+            EdgeKind::Forward
+        } else if *(self.processed.get(dst).unwrap())
+            && (self.entry_time.get(dst).unwrap() < self.entry_time.get(src).unwrap())
+        {
+            EdgeKind::Cross
+        } else {
+            EdgeKind::Undefined
+        }
     }
 }
 

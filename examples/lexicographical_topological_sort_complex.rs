@@ -145,7 +145,7 @@ fn main() {
     g.add_edge(t, x, None);
     g.add_edge(r, x, None);
 
-    let mut sorted_order = g.topological_sort().unwrap();
+    let mut sorted_order = g.dfs();
 
     // possible starting edges are 'Q', 'R', 'B'
     // but given lexicographicality, use B
@@ -171,7 +171,7 @@ fn main() {
         lexicographical_traverse_order
     );
 
-    let mut sorted_order2 = g.topological_sort().unwrap();
+    let mut sorted_order2 = g.dfs();
 
     // possible starting edges are 'Q', 'R', 'B'
     // but given lexicographicality, use B

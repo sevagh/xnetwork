@@ -1,5 +1,6 @@
 use crate::{
     bfs::BFS,
+    dag::TopologicalSort,
     dfs::{DFS, NULL_KEY},
 };
 use slotmap::{DefaultKey, SecondaryMap, SlotMap, SparseSecondaryMap};
@@ -124,6 +125,14 @@ impl<T: Copy + Debug, U: Debug> Graph<T, U> {
 
     pub fn dfs(&self) -> DFS<T, U> {
         DFS::for_graph(self)
+    }
+
+    pub fn topological_sort(&self) -> Option<TopologicalSort<T, U>> {
+        if self.directed {
+            Some(TopologicalSort::for_graph(self))
+        } else {
+            None
+        }
     }
 }
 

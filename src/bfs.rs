@@ -94,8 +94,6 @@ impl<'a, T: Copy + Debug, U: Debug> BFS<'a, T, U> {
     }
 
     pub fn connected_components(&mut self) -> i32 {
-        self.init();
-
         let mut c: i32 = 0;
 
         for k in self.graph.nodes.keys() {
@@ -111,8 +109,6 @@ impl<'a, T: Copy + Debug, U: Debug> BFS<'a, T, U> {
     }
 
     pub fn two_color(&mut self) -> bool {
-        self.init();
-
         for k in self.graph.nodes.keys() {
             // if it's unvisited, kick off the bfs
             if !self.discovered.get(k).unwrap() {

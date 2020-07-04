@@ -148,8 +148,7 @@ fn main() {
     let mut sorted_order = g.dfs();
 
     // possible starting edges are 'Q', 'R', 'B'
-    // but given lexicographicality, use B
-    sorted_order.do_topological_sort(b).unwrap();
+    sorted_order.do_lexicographical_topological_sort().unwrap();
 
     println!("\n\n");
     println!("graph edges: {}", g.n_edges());
@@ -174,8 +173,7 @@ fn main() {
     let mut sorted_order2 = g.dfs();
 
     // possible starting edges are 'Q', 'R', 'B'
-    // but given lexicographicality, use B
-    sorted_order2.do_topological_sort(b).unwrap();
+    sorted_order2.do_topological_sort().unwrap();
 
     println!("processed edges 2: {}", sorted_order2.get_n_edges());
     let traverse_order = sorted_order2

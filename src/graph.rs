@@ -3,7 +3,7 @@ use crate::{
     dfs::{DFS, NULL_KEY},
 };
 use slotmap::{DefaultKey, SecondaryMap, SlotMap, SparseSecondaryMap};
-use std::fmt::Debug;
+use std::{cmp::Ord, fmt::Debug};
 
 #[derive(Debug, Clone)]
 pub(crate) struct Edge {
@@ -12,11 +12,12 @@ pub(crate) struct Edge {
 }
 
 #[derive(Debug)]
-pub struct Graph<T: Copy + Debug, U: Debug> {
+pub struct Graph<T: Copy + Debug + Ord, U: Debug> {
     pub(crate) nodes: SlotMap<DefaultKey, T>,
     pub(crate) node_infos: SecondaryMap<DefaultKey, U>,
     pub(crate) edges: SparseSecondaryMap<DefaultKey, Vec<Edge>>,
-    pub(crate) degrees: SparseSecondaryMap<DefaultKey, usize>,
+    pub(crate) outdegrees: SparseSecondaryMap<DefaultKey, usize>,
+    pub(crate) indegrees: SparseSecondaryMap<DefaultKey, usize>,
     pub(crate) directed: bool,
 }
 
@@ -29,20 +30,21 @@ pub fn find_path(src: DefaultKey, dst: DefaultKey, parents: &SecondaryMap<Defaul
     }
 }
 
-impl<T: Copy + Debug, U: Debug> Graph<T, U> {
+impl<T: Copy + Debug + Ord, U: Debug> Graph<T, U> {
     fn new(directed: bool) -> Self {
         Graph {
             nodes: SlotMap::new(),
             node_infos: SecondaryMap::new(),
             edges: SparseSecondaryMap::new(),
-            degrees: SparseSecondaryMap::new(),
+            outdegrees: SparseSecondaryMap::new(),
+            indegrees: SparseSecondaryMap::new(),
             directed,
         }
     }
 
     pub fn n_edges(&self) -> usize {
         let mut ret: usize = 0;
-        for deg in self.degrees.values() {
+        for deg in self.outdegrees.values() {
             ret += deg;
         }
         ret
@@ -56,8 +58,15 @@ impl<T: Copy + Debug, U: Debug> Graph<T, U> {
         self.nodes.len()
     }
 
-    pub fn degree(&self, node: DefaultKey) -> usize {
-        if let Some(deg) = self.degrees.get(node) {
+    pub fn outdegree(&self, node: DefaultKey) -> usize {
+        if let Some(deg) = self.outdegrees.get(node) {
+            return *deg;
+        }
+        0
+    }
+
+    pub fn indegree(&self, node: DefaultKey) -> usize {
+        if let Some(deg) = self.indegrees.get(node) {
             return *deg;
         }
         0
@@ -82,10 +91,16 @@ impl<T: Copy + Debug, U: Debug> Graph<T, U> {
     pub fn add_edge(&mut self, src: DefaultKey, dst: DefaultKey, weight: Option<f64>) {
         let new_edge = Edge { dst, w: weight };
 
-        if let Some(x) = self.degrees.get_mut(src) {
+        if let Some(x) = self.outdegrees.get_mut(src) {
             *x += 1;
         } else {
-            self.degrees.insert(src, 1);
+            self.outdegrees.insert(src, 1);
+        }
+
+        if let Some(x) = self.indegrees.get_mut(dst) {
+            *x += 1;
+        } else {
+            self.indegrees.insert(dst, 1);
         }
 
         match self.edges.get_mut(src) {
@@ -195,7 +210,7 @@ mod tests {
     }
 
     #[test]
-    fn test_outdegree_nnopes_nedges() {
+    fn test_outdegree_nnodes_nedges() {
         let mut g = Graph::<i32, &str>::new_undirected();
 
         let a = g.add_node(0, Some("a"));
@@ -208,10 +223,10 @@ mod tests {
         g.add_edge(a, d, None);
         g.add_edge(d, c, None);
 
-        assert_eq!(g.degree(a), 3);
-        assert_eq!(g.degree(d), 1);
-        assert_eq!(g.degree(b), 0);
-        assert_eq!(g.degree(c), 0);
+        assert_eq!(g.outdegree(a), 3);
+        assert_eq!(g.outdegree(d), 1);
+        assert_eq!(g.outdegree(b), 0);
+        assert_eq!(g.outdegree(c), 0);
 
         assert_eq!(g.n_nodes(), 4);
         assert_eq!(g.n_edges(), 4);

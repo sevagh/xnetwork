@@ -3,7 +3,7 @@ use slotmap::{DefaultKey, SecondaryMap};
 use std::{collections::VecDeque, fmt::Debug};
 
 #[derive(Debug)]
-pub struct BFS<'a, T: Copy + Debug, U: Debug> {
+pub struct BFS<'a, T: Copy + Debug + Ord, U: Debug> {
     graph: &'a Graph<T, U>,
 
     // could these all be one giant SecondaryMap with a "NodeMeta"/"BFSInfo" struct stored?
@@ -38,7 +38,7 @@ impl Color {
     }
 }
 
-impl<'a, T: Copy + Debug, U: Debug> BFS<'a, T, U> {
+impl<'a, T: Copy + Debug + Ord, U: Debug> BFS<'a, T, U> {
     pub(crate) fn for_graph(g: &'a Graph<T, U>) -> Self {
         let mut bfs = BFS {
             graph: g,
@@ -147,7 +147,7 @@ impl<'a, T: Copy + Debug, U: Debug> BFS<'a, T, U> {
     }
 }
 
-impl<'a, T: Copy + Debug, U: Debug> Iterator for BFS<'a, T, U> {
+impl<'a, T: Copy + Debug + Ord, U: Debug> Iterator for BFS<'a, T, U> {
     type Item = DefaultKey;
 
     fn next(&mut self) -> Option<Self::Item> {

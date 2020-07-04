@@ -145,15 +145,17 @@ fn main() {
     g.add_edge(t, x, None);
     g.add_edge(r, x, None);
 
-    let mut sorted_order = g.lexicographical_topological_sort().unwrap();
+    let mut sorted_order = g.topological_sort().unwrap();
 
     // possible starting edges are 'Q', 'R', 'B'
     // but given lexicographicality, use B
     sorted_order.do_topological_sort(b).unwrap();
 
     println!("\n\n");
+    println!("graph edges: {}", g.n_edges());
 
-    let traverse_order = sorted_order
+    println!("processed edges 1: {}", sorted_order.get_n_edges());
+    let lexicographical_traverse_order = sorted_order
         .map(|x| {
             if let Some(letter) = g.get_node_info(x) {
                 letter
@@ -166,7 +168,34 @@ fn main() {
 
     println!(
         "lexicographically topologically sorted order: {}",
+        lexicographical_traverse_order
+    );
+
+    let mut sorted_order2 = g.topological_sort().unwrap();
+
+    // possible starting edges are 'Q', 'R', 'B'
+    // but given lexicographicality, use B
+    sorted_order2.do_topological_sort(b).unwrap();
+
+    println!("processed edges 2: {}", sorted_order2.get_n_edges());
+    let traverse_order = sorted_order2
+        .map(|x| {
+            if let Some(letter) = g.get_node_info(x) {
+                letter
+            } else {
+                ""
+            }
+        })
+        .collect::<Vec<&str>>()
+        .join("");
+
+    println!(
+        "non-lexicographic topologically sorted order: {}",
         traverse_order
     );
-    assert_eq!(traverse_order, "BGKDMJCNEQRSTUZWHYLPAFIVXO");
+    println!(
+        "expected lexicogr topologically sorted order: {}",
+        "BGKDMJCNEQRSTUZWHYLPAFIVXO"
+    );
+    //assert_eq!(traverse_order, ;
 }

@@ -66,6 +66,10 @@ impl<'a, T: Copy + Debug, U: Debug> TopologicalSort<'a, T, U> {
         topological_sort
     }
 
+    pub fn get_n_edges(&self) -> usize {
+        self.n_edges
+    }
+
     fn init(&mut self) {
         for k in self.graph.nodes.keys() {
             self.processed.insert(k, false);
@@ -74,7 +78,16 @@ impl<'a, T: Copy + Debug, U: Debug> TopologicalSort<'a, T, U> {
         }
     }
 
-    pub fn do_topological_sort(&mut self, node: DefaultKey) -> TopologicalSortResult<()> {
+    pub fn do_topological_sort(&mut self, _node: DefaultKey) -> TopologicalSortResult<()> {
+        for k in self.graph.nodes.keys() {
+            if !self.discovered.get(k).unwrap() && self.do_dfs(k).is_err() {
+                return Err(TopologicalSortError);
+            }
+        }
+        Ok(())
+    }
+
+    fn do_dfs(&mut self, node: DefaultKey) -> TopologicalSortResult<()> {
         if self.finished {
             return Ok(());
         }
@@ -96,7 +109,7 @@ impl<'a, T: Copy + Debug, U: Debug> TopologicalSort<'a, T, U> {
                     }
 
                     // make recursive topological_sort explicit with a stack
-                    if self.do_topological_sort(edge.dst).is_err() {
+                    if self.do_dfs(edge.dst).is_err() {
                         return Err(TopologicalSortError);
                     }
 
@@ -131,11 +144,12 @@ impl<'a, T: Copy + Debug, U: Debug> TopologicalSort<'a, T, U> {
         self.to_yield.push_back(node);
     }
 
-    fn process_edge(&self, src: DefaultKey, dst: DefaultKey) -> TopologicalSortResult<()> {
+    fn process_edge(&mut self, src: DefaultKey, dst: DefaultKey) -> TopologicalSortResult<()> {
         // check for back edges
         if self.classify_edge(src, dst) == EdgeKind::Back {
             return Err(TopologicalSortError);
         }
+        self.n_edges += 1;
         Ok(())
     }
 

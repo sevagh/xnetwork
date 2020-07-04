@@ -1,7 +1,6 @@
 use crate::{
     bfs::BFS,
     dag::TopologicalSort,
-    dag_ord::LexicographicalTopologicalSort,
     dfs::{DFS, NULL_KEY},
 };
 use slotmap::{DefaultKey, SecondaryMap, SlotMap, SparseSecondaryMap};
@@ -139,16 +138,6 @@ impl<T: Copy + Debug, U: Debug> Graph<T, U> {
     pub fn topological_sort(&self) -> Option<TopologicalSort<T, U>> {
         if self.directed {
             Some(TopologicalSort::for_graph(self))
-        } else {
-            None
-        }
-    }
-}
-
-impl<T: Copy + Debug + Ord, U: Debug> Graph<T, U> {
-    pub fn lexicographical_topological_sort(&self) -> Option<LexicographicalTopologicalSort<T, U>> {
-        if self.directed {
-            Some(LexicographicalTopologicalSort::for_graph(self))
         } else {
             None
         }

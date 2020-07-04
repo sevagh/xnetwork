@@ -124,6 +124,10 @@ impl<T: Copy + Debug, U: Debug> Graph<T, U> {
         );
     }
 
+    pub fn get_node_info(&self, n: DefaultKey) -> Option<&U> {
+        self.node_infos.get(n)
+    }
+
     pub fn bfs(&self) -> BFS<T, U> {
         BFS::for_graph(self)
     }
@@ -142,9 +146,7 @@ impl<T: Copy + Debug, U: Debug> Graph<T, U> {
 }
 
 impl<T: Copy + Debug + Ord, U: Debug> Graph<T, U> {
-    pub fn lexicographical_topological_sort(
-        &mut self,
-    ) -> Option<LexicographicalTopologicalSort<T, U>> {
+    pub fn lexicographical_topological_sort(&self) -> Option<LexicographicalTopologicalSort<T, U>> {
         if self.directed {
             Some(LexicographicalTopologicalSort::for_graph(self))
         } else {

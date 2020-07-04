@@ -109,7 +109,7 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> LexicographicalTopologicalSort<'a, T, 
 
             println!("edge list POST-lexicographical sort: {:?}", edge_list);
 
-            for edge in edge_list.iter() {
+            for edge in edge_list.iter().rev() {
                 self.graph.print_info(edge.dst);
 
                 if !self.discovered.get(edge.dst).unwrap() {

@@ -180,7 +180,7 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
         'outer: while !stack.is_empty().unwrap() {
             node = stack.pop().unwrap();
 
-            //self.graph.print_info(node);
+            self.graph.print_info(node);
 
             self.discovered.insert(node, true);
             self.time += 1;
@@ -198,27 +198,23 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
                         self.parent.insert(edge.dst, node);
 
                         if self.process_edge(node, edge.dst).is_err() {
-                            println!("A");
                             return Err(TopologicalSortError);
                         }
 
                         stack.push(edge.dst);
-
-                        //continue 'outer;
                     } else if (!self.processed.get(edge.dst).unwrap()
                         && *(self.parent.get(node).unwrap()) != edge.dst)
                         || self.graph.directed
                     {
                         if self.process_edge(node, edge.dst).is_err() {
-                            println!("B");
                             return Err(TopologicalSortError);
                         }
-                        if self.finished {
-                            return Ok(());
-                        }
+                    }
+                    if self.finished {
+                        return Ok(());
                     }
                 }
-                //continue 'outer;
+                continue 'outer;
             }
 
             self.process_node_late(node);
@@ -284,12 +280,8 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
     }
 
     fn classify_edge(&self, src: DefaultKey, dst: DefaultKey) -> EdgeKind {
+        println!("classifying edge {:?} {:?}", src, dst);
         if *(self.discovered.get(dst).unwrap()) && !(*self.processed.get(dst).unwrap()) {
-            // it's more complicated now that i added the parent_stack
-            // vs node_stack
-            println!("self.parent_stack: {:?}", self.parent_stack);
-            println!("cond 1: {:?}", *(self.discovered.get(dst).unwrap()));
-            println!("cond 2: {:?}", !(*self.processed.get(dst).unwrap()));
             return EdgeKind::Back;
         }
         EdgeKind::Undefined

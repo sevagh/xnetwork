@@ -151,9 +151,7 @@ fn main() {
     sorted_order.do_lexicographical_topological_sort().unwrap();
 
     println!("\n\n");
-    println!("graph edges: {}", g.n_edges());
 
-    println!("processed edges 1: {}", sorted_order.get_n_edges());
     let lexicographical_traverse_order = sorted_order
         .map(|x| {
             if let Some(letter) = g.get_node_info(x) {

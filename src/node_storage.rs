@@ -1,6 +1,6 @@
-use std::{cmp::Ord, collections::{VecDeque}, fmt::Debug};
-use slotmap::DefaultKey;
 use crate::graph::Graph;
+use slotmap::DefaultKey;
+use std::{cmp::Ord, collections::VecDeque, fmt::Debug};
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub(crate) enum StorageKind {
@@ -20,8 +20,8 @@ pub(crate) struct NodeStorage<'a, T: Copy + Debug + Ord, U: Debug> {
 
 impl<'a, T: Copy + Debug + Ord, U: Debug> NodeStorage<'a, T, U> {
     pub(crate) fn new(g: &'a Graph<T, U>, kind: StorageKind) -> Self {
-        let mut ret = NodeStorage{
-            kind: kind,
+        let mut ret = NodeStorage {
+            kind,
             graph: g,
             queue: None,
             stack: None,
@@ -30,10 +30,10 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> NodeStorage<'a, T, U> {
         match kind {
             StorageKind::BFSQueue => {
                 ret.queue = Some(VecDeque::new());
-            },
+            }
             StorageKind::DFSStack => {
                 ret.stack = Some(Vec::new());
-            },
+            }
             StorageKind::LexicographicalStack => {
                 ret.heap = Some(Vec::new());
             }
@@ -47,13 +47,13 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> NodeStorage<'a, T, U> {
                 if let Some(ref mut storage) = self.queue {
                     (*storage).push_back(elem);
                 }
-            },
+            }
             StorageKind::DFSStack => {
                 if let Some(ref mut storage) = self.stack {
                     (*storage).push(elem);
                     storage.dedup();
                 }
-            },
+            }
             StorageKind::LexicographicalStack => {
                 if let Some(ref mut storage) = self.heap {
                     (*storage).push(elem);
@@ -70,9 +70,7 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> NodeStorage<'a, T, U> {
 
                 let mut storage_copy = self.heap.as_ref().unwrap().clone();
 
-                storage_copy.sort_by_key(|elem| {
-                    self.graph.nodes.get(*elem).unwrap()
-                });
+                storage_copy.sort_by_key(|elem| self.graph.nodes.get(*elem).unwrap());
                 storage_copy.reverse();
                 storage_copy.dedup();
 
@@ -82,21 +80,21 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> NodeStorage<'a, T, U> {
     }
 
     pub(crate) fn pop(&mut self) -> Option<DefaultKey> {
-        return match self.kind {
+        match self.kind {
             StorageKind::BFSQueue => {
                 if let Some(ref mut storage) = self.queue {
                     (*storage).pop_front()
                 } else {
                     None
                 }
-            },
+            }
             StorageKind::DFSStack => {
                 if let Some(ref mut storage) = self.stack {
                     (*storage).pop()
                 } else {
                     None
                 }
-            },
+            }
             StorageKind::LexicographicalStack => {
                 if let Some(ref mut storage) = self.heap {
                     (*storage).pop()
@@ -108,50 +106,24 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> NodeStorage<'a, T, U> {
     }
 
     pub(crate) fn is_empty(&self) -> Option<bool> {
-        return match self.kind {
+        match self.kind {
             StorageKind::BFSQueue => {
                 if let Some(ref storage) = self.queue {
-                    Some((*storage).is_empty())
-                } else {
-                    None
-                }
-            },
-            StorageKind::DFSStack => {
-                if let Some(ref storage) = self.stack {
-                    Some((*storage).is_empty())
-                } else {
-                    None
-                }
-            },
-            StorageKind::LexicographicalStack => {
-                if let Some(ref storage) = self.heap {
                     Some((*storage).is_empty())
                 } else {
                     None
                 }
             }
-        }
-    }
-
-    pub(crate) fn contains(&self, elem: &DefaultKey) -> Option<bool> {
-        return match self.kind {
-            StorageKind::BFSQueue => {
-                if let Some(ref storage) = self.queue {
-                    Some((*storage).contains(elem))
-                } else {
-                    None
-                }
-            },
             StorageKind::DFSStack => {
                 if let Some(ref storage) = self.stack {
-                    Some((*storage).contains(elem))
+                    Some((*storage).is_empty())
                 } else {
                     None
                 }
-            },
+            }
             StorageKind::LexicographicalStack => {
                 if let Some(ref storage) = self.heap {
-                    Some((*storage).contains(elem))
+                    Some((*storage).is_empty())
                 } else {
                     None
                 }

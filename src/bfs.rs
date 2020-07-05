@@ -1,4 +1,7 @@
-use crate::{graph::Graph, node_storage::{NodeStorage, StorageKind}};
+use crate::{
+    graph::Graph,
+    node_storage::{NodeStorage, StorageKind},
+};
 use slotmap::{DefaultKey, SecondaryMap};
 use std::{collections::VecDeque, fmt::Debug};
 

@@ -1,7 +1,10 @@
-use crate::{graph::{find_path, Graph}, node_storage::{NodeStorage, StorageKind}};
+use crate::{
+    graph::{find_path, Graph},
+    node_storage::{NodeStorage, StorageKind},
+};
+use linked_hash_set::LinkedHashSet;
 use slotmap::{DefaultKey, SecondaryMap};
 use std::{cmp::Ord, collections::VecDeque, error, fmt, fmt::Debug, result};
-use linked_hash_set::LinkedHashSet;
 
 lazy_static! {
     pub(crate) static ref NULL_KEY: DefaultKey = DefaultKey::default();
@@ -123,10 +126,8 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
         }
 
         for k in self.graph.nodes.keys() {
-            if !self.discovered.get(k).unwrap() {
-                if self.do_dfs_priv(k).is_err() {
-                    return Err(TopologicalSortError);
-                }
+            if !self.discovered.get(k).unwrap() && self.do_dfs_priv(k).is_err() {
+                return Err(TopologicalSortError);
             }
         }
         Ok(())
@@ -146,9 +147,7 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
                 starting_nodes.push(k);
             }
         }
-        starting_nodes.sort_by_key(|k| {
-            self.graph.nodes.get(*k).unwrap()
-        });
+        starting_nodes.sort_by_key(|k| self.graph.nodes.get(*k).unwrap());
 
         if self.do_dfs_priv(starting_nodes[0]).is_err() {
             return Err(TopologicalSortError);
@@ -199,16 +198,12 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
                         }
 
                         stack.push(edge.dst);
-                    } else if (!self.processed.get(edge.dst).unwrap()
+                    } else if ((!self.processed.get(edge.dst).unwrap()
                         && *(self.parent.get(node).unwrap()) != edge.dst)
-                        || self.graph.directed
+                        || self.graph.directed)
+                        && self.process_edge(node, edge.dst).is_err()
                     {
-                        println!("edge: {:?} {:?}", node, edge.dst);
-                        if self.process_edge(node, edge.dst).is_err() {
-                            println!("self.parent_stack: {:?}", self.parent_stack);
-                            println!("stack: {:?}", stack.stack);
-                            return Err(TopologicalSortError);
-                        }
+                        return Err(TopologicalSortError);
                     }
                     if self.finished {
                         return Ok(());
@@ -256,7 +251,6 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
     fn process_edge(&mut self, src: DefaultKey, dst: DefaultKey) -> TopologicalSortResult<()> {
         if self.classify_edge(src, dst) == EdgeKind::Back {
             if !self.topological {
-                println!("BACK EDGE BUSTER!");
                 // check for back edges
                 eprintln!(
                     "[INFO] found cycle {:?}, {:?}",
@@ -277,8 +271,12 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
         Ok(())
     }
 
-    fn classify_edge(&mut self, src: DefaultKey, dst: DefaultKey) -> EdgeKind {
-        if *(self.discovered.get(dst).unwrap()) && !(*self.processed.get(dst).unwrap()) && !(self.parent_stack.contains(&dst)) {
+    // keep src in case i want to later implement other classification
+    fn classify_edge(&mut self, _src: DefaultKey, dst: DefaultKey) -> EdgeKind {
+        if *(self.discovered.get(dst).unwrap())
+            && !(*self.processed.get(dst).unwrap())
+            && !(self.parent_stack.contains(&dst))
+        {
             return EdgeKind::Back;
         }
         EdgeKind::Undefined

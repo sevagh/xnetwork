@@ -73,6 +73,7 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> NodeStorage<'a, T, U> {
                     self.graph.nodes.get(*elem).unwrap()
                 });
                 storage_copy.reverse();
+                storage_copy.dedup();
 
                 self.heap = Some(storage_copy);
             }

@@ -110,9 +110,7 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS2<'a, T, U> {
         }
 
         for k in self.graph.nodes.keys() {
-            println!("checking node: {:?}", k);
             if !self.discovered.get(k).unwrap() {
-                println!("undiscovered! doing...");
                 if self.do_dfs_priv(k).is_err() {
                     return Err(TopologicalSortError);
                 }
@@ -160,26 +158,10 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS2<'a, T, U> {
 
         let mut node: DefaultKey;
 
-        println!("self.stack: {:?}", self.stack.heap);
         self.stack.push(start);
-        println!("self.stack: {:?}", self.stack.heap);
 
-        'outer: while !self.stack.is_empty().unwrap() || !self.parent_stack.is_empty() {
-            node = match self.stack.pop() {
-                Some(x) => {
-                    println!("got a thing off the node stack!"); 
-                    x
-                }
-                None => {
-                    println!("the node stack is empty!"); 
-                    match self.parent_stack.pop_front() {
-                        Some(x) => x,
-                        None => panic!("what state are you in?"),
-                    }
-                }
-            };
-
-            println!("discovering, incrementing time, entry time for node {:?}", node);
+        'outer: while !self.stack.is_empty().unwrap() {
+            node = self.stack.pop().unwrap();
 
             self.graph.print_info(node);
 
@@ -189,6 +171,7 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS2<'a, T, U> {
             self.entry_time.insert(node, self.time);
 
             self.process_node_early(node);
+            self.parent_stack.insert(node);
 
             if let Some(edge_list) = self.graph.edges.get(node) {
                 // accumulate all possible nodes in self.stack
@@ -201,9 +184,6 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS2<'a, T, U> {
                             return Err(TopologicalSortError);
                         }
 
-                        println!("\tkicking off recursion from {:?} to {:?}", node, edge.dst);
-                        println!("\n");
-                        self.parent_stack.insert(node);
                         self.stack.push(edge.dst);
 
                         //continue 'outer;
@@ -219,9 +199,22 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS2<'a, T, U> {
                         }
                     }
                 }
-                println!("filled parent stack: {:?}", self.parent_stack);
-                println!("filled heap stack: {:?}", self.stack.heap);
                 continue 'outer;
+            }
+
+            self.process_node_late(node);
+            self.time += 1;
+            self.exit_time.insert(node, self.time);
+            self.processed.insert(node, true);
+        }
+
+        // pop the remnants and finish up
+        while !self.parent_stack.is_empty() {
+            node = self.parent_stack.pop_back().unwrap();
+
+            // skip already processed nodes
+            if *self.processed.get(node).unwrap() {
+                continue;
             }
 
             self.process_node_late(node);

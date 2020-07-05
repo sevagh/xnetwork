@@ -7,13 +7,12 @@ lazy_static! {
     pub(crate) static ref NULL_KEY: DefaultKey = DefaultKey::default();
 }
 
+// skiena has several edge kinds but i only care about back edges
+// for detecting cycles
 #[derive(Debug, PartialEq)]
 enum EdgeKind {
     Undefined,
-    Tree,
     Back,
-    Forward,
-    Cross,
 }
 
 type TopologicalSortResult<T> = result::Result<T, TopologicalSortError>;
@@ -181,7 +180,7 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
         'outer: while !stack.is_empty().unwrap() {
             node = stack.pop().unwrap();
 
-            self.graph.print_info(node);
+            //self.graph.print_info(node);
 
             self.discovered.insert(node, true);
             self.time += 1;
@@ -219,7 +218,7 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
                         }
                     }
                 }
-                continue 'outer;
+                //continue 'outer;
             }
 
             self.process_node_late(node);
@@ -261,6 +260,7 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
         println!("process edge {:?} {:?}", src, dst);
         if self.classify_edge(src, dst) == EdgeKind::Back {
             if !self.topological {
+                println!("BACK EDGE BUSTER!");
                 // check for back edges
                 eprintln!(
                     "[INFO] found cycle {:?}, {:?}",
@@ -270,7 +270,9 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
                 find_path(dst, src, &self.parent);
 
                 if self.n_edges == self.graph.n_edges() {
+                    println!("we finished!");
                     self.finished = true;
+                    return Ok(());
                 }
             } else {
                 println!("back edge!!! not a DAG!!");
@@ -282,23 +284,15 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
     }
 
     fn classify_edge(&self, src: DefaultKey, dst: DefaultKey) -> EdgeKind {
-        if *(self.parent.get(dst).unwrap()) == src {
-            EdgeKind::Tree
-        } else if *(self.discovered.get(dst).unwrap()) && !*(self.processed.get(dst).unwrap()) && !self.parent_stack.contains(&dst) {
+        if *(self.discovered.get(dst).unwrap()) && !(*self.processed.get(dst).unwrap()) {
             // it's more complicated now that i added the parent_stack
             // vs node_stack
-            EdgeKind::Back
-        } else if *(self.processed.get(dst).unwrap())
-            && (self.entry_time.get(dst).unwrap() > self.entry_time.get(src).unwrap())
-        {
-            EdgeKind::Forward
-        } else if *(self.processed.get(dst).unwrap())
-            && (self.entry_time.get(dst).unwrap() < self.entry_time.get(src).unwrap())
-        {
-            EdgeKind::Cross
-        } else {
-            EdgeKind::Undefined
+            println!("self.parent_stack: {:?}", self.parent_stack);
+            println!("cond 1: {:?}", *(self.discovered.get(dst).unwrap()));
+            println!("cond 2: {:?}", !(*self.processed.get(dst).unwrap()));
+            return EdgeKind::Back;
         }
+        EdgeKind::Undefined
     }
 }
 
@@ -443,8 +437,8 @@ mod tests {
         dfs1.do_dfs_priv(a1).unwrap();
 
         assert_eq!(dfs1.next(), Some(a1));
-        assert_eq!(dfs1.next(), Some(b1));
         assert_eq!(dfs1.next(), Some(c1));
+        assert_eq!(dfs1.next(), Some(b1));
         assert_eq!(dfs1.next(), None);
         assert_eq!(dfs1.n_edges, g1.n_edges());
         println!(
@@ -471,9 +465,9 @@ mod tests {
         dfs.do_dfs_priv(a2).unwrap();
 
         assert_eq!(dfs.next(), Some(a2));
-        assert_eq!(dfs.next(), Some(b2));
-        assert_eq!(dfs.next(), Some(c2));
         assert_eq!(dfs.next(), Some(d2));
+        assert_eq!(dfs.next(), Some(c2));
+        assert_eq!(dfs.next(), Some(b2));
         assert_eq!(dfs.next(), None);
         assert_eq!(dfs.n_edges, g2.n_edges());
         println!(

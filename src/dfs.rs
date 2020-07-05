@@ -117,12 +117,12 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
             return Err(TopologicalSortError);
         }
 
-        if self.do_dfs_priv(starting_node.unwrap()).is_err() {
+        if self.do_dfs_priv(&[starting_node.unwrap()]).is_err() {
             return Err(TopologicalSortError);
         }
 
         for k in self.graph.nodes.keys() {
-            if !self.discovered.get(k).unwrap() && self.do_dfs_priv(k).is_err() {
+            if !self.discovered.get(k).unwrap() && self.do_dfs_priv(&[k]).is_err() {
                 return Err(TopologicalSortError);
             }
         }
@@ -146,25 +146,20 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
         }
         starting_nodes.sort_by_key(|k| self.graph.nodes.get(*k).unwrap());
 
-        if self.do_dfs_priv(starting_nodes[0]).is_err() {
+        if self.do_dfs_priv(&starting_nodes).is_err() {
             return Err(TopologicalSortError);
         }
 
-        for k in self.graph.nodes.keys() {
-            if !self.discovered.get(k).unwrap() && self.do_dfs_priv(k).is_err() {
-                return Err(TopologicalSortError);
-            }
-        }
-
-        self.to_yield.reverse();
         Ok(())
     }
 
     pub fn do_dfs(&mut self, node: DefaultKey) -> TopologicalSortResult<()> {
-        self.do_dfs_priv(node)
+        let ret = self.do_dfs_priv(&[node]);
+        self.to_yield.reverse();
+        ret
     }
 
-    fn do_dfs_priv(&mut self, start: DefaultKey) -> TopologicalSortResult<()> {
+    fn do_dfs_priv(&mut self, start: &[DefaultKey]) -> TopologicalSortResult<()> {
         let mut stack1 = NodeStorage::new(self.graph, self.storage_kind);
         //let mut stack2 = NodeStorage::new(self.graph, self.storage_kind);
         let mut stack2 = LinkedHashSet::new();
@@ -175,13 +170,12 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
 
         let mut node: DefaultKey;
 
-        stack1.push(start);
+        for st in start {
+            stack1.push(*st);
+        }
 
         'outer: while !stack1.is_empty().unwrap() {
-            //println!("stack1: {:?}", stack1.heap);
             node = stack1.pop().unwrap();
-            //println!("node1 - forward");
-            //self.graph.print_info(node);
 
             self.discovered.insert(node, true);
             self.time += 1;
@@ -201,13 +195,19 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
 
                             self.process_edge();
 
-                            //println!("pushed {:?} from {:?}", edge.dst, node);
                             stack1.push(edge.dst);
+                            stack1.reduce_indegree(edge.dst);
                         } else if (!self.processed.get(edge.dst).unwrap()
                             && *(self.parent.get(node).unwrap()) != edge.dst)
                             || self.graph.directed
                         {
                             self.process_edge();
+
+                            // reduce the indegree of a node
+                            // after processing an edge
+                            // it should let nodes bubble to the top
+                            // when their prerequisites are unlocked
+                            stack1.reduce_indegree(edge.dst);
                         }
                         if self.finished {
                             return Ok(());
@@ -226,9 +226,6 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
         while !stack2.is_empty() {
             node = stack2.pop_back().unwrap();
 
-            //println!("node2 - rewind");
-            //self.graph.print_info(node);
-
             if *self.processed.get(node).unwrap() {
                 continue;
             }
@@ -240,7 +237,6 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
         }
 
         self.to_yield.dedup();
-        self.to_yield.reverse();
         Ok(())
     }
 

@@ -17,12 +17,13 @@ pub(crate) enum StorageKind {
 pub(crate) struct HeapEntry<T: Copy + Debug + Ord> {
     slotmap_key: DefaultKey,
     node_value: T,
-    indegree: usize,
+    indegree: i32,
 }
 
 impl<T: Copy + Debug + Ord> Ord for HeapEntry<T> {
     fn cmp(&self, other: &Self) -> Ordering {
-        other.indegree.cmp(&self.indegree)
+        self.indegree
+            .cmp(&other.indegree)
             .then_with(|| other.node_value.cmp(&self.node_value))
     }
 }
@@ -83,7 +84,7 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> NodeStorage<'a, T, U> {
                     (*storage).push(HeapEntry {
                         slotmap_key: elem,
                         node_value: *self.graph.nodes.get(elem).unwrap(),
-                        indegree: *self.graph.indegrees.get(elem).unwrap_or(&0usize),
+                        indegree: *self.graph.indegrees.get(elem).unwrap_or(&0usize) as i32,
                     });
                     //*storage.dedup();
                 }
@@ -141,6 +142,20 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> NodeStorage<'a, T, U> {
                     None
                 }
             }
+        }
+    }
+
+    pub(crate) fn reduce_indegree(&mut self, dst: DefaultKey) {
+        if let StorageKind::LexicographicalHeap = self.kind {
+            let mut v = self.heap.take().unwrap().into_vec();
+
+            for mut e in v.iter_mut() {
+                if e.slotmap_key == dst {
+                    e.indegree -= 1;
+                }
+            }
+
+            self.heap.replace(v.into());
         }
     }
 }

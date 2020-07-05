@@ -28,6 +28,8 @@ fn main() {
     let d = g.add_node(3, Some("D"));
     let e = g.add_node(4, Some("E"));
     let f = g.add_node(5, Some("F"));
+    let h = g.add_node(7, Some("H"));
+    let i = g.add_node(8, Some("I"));
 
     g.add_edge(c, a, None);
     g.add_edge(c, f, None);
@@ -38,6 +40,10 @@ fn main() {
     g.add_edge(d, e, None);
     g.add_edge(b, e, None);
     g.add_edge(f, e, None);
+
+    g.add_edge(a, e, None);
+    g.add_edge(i, e, None);
+    g.add_edge(h, i, None);
 
     let mut sorted_order = g.lexicographical_topological_sort();
     sorted_order.do_lexicographical_topological_sort().unwrap();
@@ -60,5 +66,5 @@ fn main() {
         lexicographical_traverse_order
     );
 
-    assert_eq!(lexicographical_traverse_order, "CABDFE");
+    assert_eq!(lexicographical_traverse_order, "CABDFHIE");
 }

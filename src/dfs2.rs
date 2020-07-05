@@ -47,7 +47,7 @@ pub struct DFS2<'a, T: Copy + Debug + Ord, U: Debug> {
     exit_time: SecondaryMap<DefaultKey, usize>,
 
     to_yield: VecDeque<DefaultKey>,
-    stack: Option<NodeStorage<'a, T, U>>,
+    stack: NodeStorage<'a, T, U>,
     n_edges: usize,
     time: usize,
     finished: bool,
@@ -65,7 +65,7 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS2<'a, T, U> {
             entry_time: SecondaryMap::with_capacity(g.nodes.len()),
             exit_time: SecondaryMap::with_capacity(g.nodes.len()),
             to_yield: VecDeque::with_capacity(g.nodes.len()),
-            stack: None,
+            stack: NodeStorage::new(g, StorageKind::DFSStack),
             n_edges: 0,
             time: 0,
             finished: false,
@@ -89,8 +89,6 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS2<'a, T, U> {
     }
 
     pub fn do_topological_sort(&mut self) -> TopologicalSortResult<()> {
-        self.stack = Some(NodeStorage::new(self.graph, StorageKind::DFSStack));
-
         if !self.graph.directed {
             return Err(TopologicalSortError);
         }
@@ -121,8 +119,6 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS2<'a, T, U> {
     }
 
     pub fn do_lexicographical_topological_sort(&mut self) -> TopologicalSortResult<()> {
-        self.stack = Some(NodeStorage::new(self.graph, StorageKind::DFSStack));
-
         if !self.graph.directed {
             return Err(TopologicalSortError);
         }
@@ -151,60 +147,68 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS2<'a, T, U> {
     }
 
     pub fn do_dfs(&mut self, node: DefaultKey) -> TopologicalSortResult<()> {
-        self.stack = Some(NodeStorage::new(self.graph, StorageKind::DFSStack));
         self.do_dfs_priv(node)
     }
 
-    fn do_dfs_priv(&mut self, node: DefaultKey) -> TopologicalSortResult<()> {
+    fn do_dfs_priv(&mut self, start: DefaultKey) -> TopologicalSortResult<()> {
         if self.finished {
             return Ok(());
         }
 
-        println!("discovering, incrementing time, entry time for node {:?}", node);
-        self.graph.print_info(node);
+        let mut node: DefaultKey;
 
-        self.discovered.insert(node, true);
-        self.time += 1;
+        self.stack.push(start);
 
-        self.entry_time.insert(node, self.time);
+        'outer: while !self.stack.is_empty().unwrap() {
+            node = self.stack.pop().unwrap();
+            println!("discovering, incrementing time, entry time for node {:?}", node);
 
-        self.process_node_early(node);
+            self.graph.print_info(node);
 
-        if let Some(edge_list) = self.graph.edges.get(node) {
-            for edge in edge_list.iter() {
-                if !self.discovered.get(edge.dst).unwrap() {
-                    self.parent.insert(edge.dst, node);
+            self.discovered.insert(node, true);
+            self.time += 1;
 
-                    if self.process_edge(node, edge.dst).is_err() && self.lexicographical {
-                        return Err(TopologicalSortError);
-                    }
+            self.entry_time.insert(node, self.time);
 
-                    println!("\tkicking off recursion from {:?} to {:?}", node, edge.dst);
-                    println!("\n");
-                    if self.do_dfs_priv(edge.dst).is_err() {
-                        return Err(TopologicalSortError);
-                    }
+            self.process_node_early(node);
 
-                    continue;
-                } else if (!self.processed.get(edge.dst).unwrap()
-                    && *(self.parent.get(node).unwrap()) != edge.dst)
-                    || self.graph.directed
-                {
-                    if self.process_edge(node, edge.dst).is_err() && self.lexicographical {
-                        return Err(TopologicalSortError);
-                    }
-                    if self.finished {
-                        return Ok(());
+            if let Some(edge_list) = self.graph.edges.get(node) {
+                for edge in edge_list.iter() {
+                    if !self.discovered.get(edge.dst).unwrap() {
+                        self.parent.insert(edge.dst, node);
+
+                        if self.process_edge(node, edge.dst).is_err() && self.lexicographical {
+                            return Err(TopologicalSortError);
+                        }
+
+                        println!("\tkicking off recursion from {:?} to {:?}", node, edge.dst);
+                        println!("\n");
+                        //if self.do_dfs_priv(edge.dst).is_err() {
+                        //    return Err(TopologicalSortError);
+                        //}
+                        self.stack.push(node);
+                        self.stack.push(edge.dst);
+
+                        continue 'outer;
+                    } else if (!self.processed.get(edge.dst).unwrap()
+                        && *(self.parent.get(node).unwrap()) != edge.dst)
+                        || self.graph.directed
+                    {
+                        if self.process_edge(node, edge.dst).is_err() && self.lexicographical {
+                            return Err(TopologicalSortError);
+                        }
+                        if self.finished {
+                            return Ok(());
+                        }
                     }
                 }
             }
+
+            self.process_node_late(node);
+            self.time += 1;
+            self.exit_time.insert(node, self.time);
+            self.processed.insert(node, true);
         }
-
-        self.process_node_late(node);
-        self.time += 1;
-        self.exit_time.insert(node, self.time);
-        self.processed.insert(node, true);
-
         Ok(())
     }
 

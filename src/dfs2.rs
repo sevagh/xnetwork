@@ -47,7 +47,7 @@ pub struct DFS2<'a, T: Copy + Debug + Ord, U: Debug> {
     exit_time: SecondaryMap<DefaultKey, usize>,
 
     to_yield: VecDeque<DefaultKey>,
-    stack: Vec<DefaultKey>,
+    //stack: Vec<DefaultKey>,
     n_edges: usize,
     time: usize,
     finished: bool,

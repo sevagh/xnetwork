@@ -272,10 +272,10 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
                 if self.n_edges == self.graph.n_edges() {
                     self.finished = true;
                 }
-            } /*else {
+            } else {
                 println!("back edge!!! not a DAG!!");
                 return Err(TopologicalSortError);
-            }*/
+            }
         }
         self.n_edges += 1;
         Ok(())
@@ -284,7 +284,9 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
     fn classify_edge(&self, src: DefaultKey, dst: DefaultKey) -> EdgeKind {
         if *(self.parent.get(dst).unwrap()) == src {
             EdgeKind::Tree
-        } else if *(self.discovered.get(dst).unwrap()) && !*(self.processed.get(dst).unwrap()) {
+        } else if *(self.discovered.get(dst).unwrap()) && !*(self.processed.get(dst).unwrap()) && !self.parent_stack.contains(&dst) {
+            // it's more complicated now that i added the parent_stack
+            // vs node_stack
             EdgeKind::Back
         } else if *(self.processed.get(dst).unwrap())
             && (self.entry_time.get(dst).unwrap() > self.entry_time.get(src).unwrap())

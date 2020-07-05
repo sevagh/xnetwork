@@ -371,46 +371,6 @@ mod tests {
     }
 
     #[test]
-    fn real_dfs_tremaux_tree() {
-        // from
-        // https://en.wikipedia.org/wiki/Depth-first_search#Example
-
-        let mut gr = Graph::<i32, &str>::new_undirected();
-
-        let a = gr.add_node(0, Some("a"));
-        let b = gr.add_node(1, Some("b"));
-        let c = gr.add_node(2, Some("c"));
-        let d = gr.add_node(3, Some("d"));
-        let e = gr.add_node(4, Some("e"));
-        let f = gr.add_node(5, Some("f"));
-        let g = gr.add_node(6, Some("g"));
-
-        gr.add_edge(a, b, None);
-        gr.add_edge(b, d, None);
-        gr.add_edge(b, f, None);
-        gr.add_edge(f, e, None);
-        gr.add_edge(a, c, None);
-        gr.add_edge(c, g, None);
-        gr.add_edge(a, e, None);
-
-        let mut dfs = gr.dfs();
-        dfs.do_dfs(a).unwrap();
-
-        //for visited in dfs {
-        //    println!("visited {:?}", visited);
-        //    gr.print_info(visited);
-        //}
-
-        assert_eq!(dfs.next(), Some(a));
-        assert_eq!(dfs.next(), Some(b));
-        assert_eq!(dfs.next(), Some(d));
-        assert_eq!(dfs.next(), Some(f));
-        assert_eq!(dfs.next(), Some(e));
-        assert_eq!(dfs.next(), Some(c));
-        assert_eq!(dfs.next(), Some(g));
-    }
-
-    #[test]
     fn dfs_avoid_cycles() {
         let mut g1 = Graph::<i32, &str>::new_undirected();
 

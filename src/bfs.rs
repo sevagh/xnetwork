@@ -1,9 +1,12 @@
-use crate::graph::Graph;
+use crate::{
+    graph::Graph,
+    node_storage::{NodeStorage, StorageKind},
+};
 use slotmap::{DefaultKey, SecondaryMap};
 use std::{collections::VecDeque, fmt::Debug};
 
 #[derive(Debug)]
-pub struct BFS<'a, T: Copy + Debug, U: Debug> {
+pub struct BFS<'a, T: Copy + Debug + Ord, U: Debug> {
     graph: &'a Graph<T, U>,
 
     // could these all be one giant SecondaryMap with a "NodeMeta"/"BFSInfo" struct stored?
@@ -15,7 +18,7 @@ pub struct BFS<'a, T: Copy + Debug, U: Debug> {
     colors: SecondaryMap<DefaultKey, Color>,
     parent: SecondaryMap<DefaultKey, Option<DefaultKey>>,
 
-    queue: VecDeque<DefaultKey>,
+    queue: NodeStorage<'a, T, U>,
     to_yield: VecDeque<DefaultKey>,
     bipartite: bool,
     n_edges: usize,
@@ -38,7 +41,7 @@ impl Color {
     }
 }
 
-impl<'a, T: Copy + Debug, U: Debug> BFS<'a, T, U> {
+impl<'a, T: Copy + Debug + Ord, U: Debug> BFS<'a, T, U> {
     pub(crate) fn for_graph(g: &'a Graph<T, U>) -> Self {
         let mut bfs = BFS {
             graph: g,
@@ -46,7 +49,7 @@ impl<'a, T: Copy + Debug, U: Debug> BFS<'a, T, U> {
             discovered: SecondaryMap::with_capacity(g.nodes.len()),
             parent: SecondaryMap::with_capacity(g.nodes.len()),
             colors: SecondaryMap::with_capacity(g.nodes.len()),
-            queue: VecDeque::with_capacity(g.nodes.len()),
+            queue: NodeStorage::new(g, StorageKind::BFSQueue),
             to_yield: VecDeque::with_capacity(g.nodes.len()),
             bipartite: true,
             n_edges: 0,
@@ -65,13 +68,13 @@ impl<'a, T: Copy + Debug, U: Debug> BFS<'a, T, U> {
     }
 
     pub fn do_bfs(&mut self, start: DefaultKey) {
-        self.queue.push_back(start);
-        self.discovered.insert(self.queue[0], true);
+        self.queue.push(start);
+        self.discovered.insert(start, true);
 
         let mut node: DefaultKey;
 
-        while !self.queue.is_empty() {
-            node = self.queue.pop_front().unwrap();
+        while !self.queue.is_empty().unwrap() {
+            node = self.queue.pop().unwrap();
 
             self.process_node_early(node);
             self.processed.insert(node, true);
@@ -83,7 +86,7 @@ impl<'a, T: Copy + Debug, U: Debug> BFS<'a, T, U> {
                     }
 
                     if !self.discovered.get(edge.dst).unwrap() {
-                        self.queue.push_back(edge.dst);
+                        self.queue.push(edge.dst);
                         self.discovered.insert(edge.dst, true);
                         self.parent.insert(edge.dst, Some(node));
                     }
@@ -94,8 +97,6 @@ impl<'a, T: Copy + Debug, U: Debug> BFS<'a, T, U> {
     }
 
     pub fn connected_components(&mut self) -> i32 {
-        self.init();
-
         let mut c: i32 = 0;
 
         for k in self.graph.nodes.keys() {
@@ -111,8 +112,6 @@ impl<'a, T: Copy + Debug, U: Debug> BFS<'a, T, U> {
     }
 
     pub fn two_color(&mut self) -> bool {
-        self.init();
-
         for k in self.graph.nodes.keys() {
             // if it's unvisited, kick off the bfs
             if !self.discovered.get(k).unwrap() {
@@ -140,7 +139,7 @@ impl<'a, T: Copy + Debug, U: Debug> BFS<'a, T, U> {
         if self.colors.get(src).unwrap() == self.colors.get(dst).unwrap() {
             self.bipartite = false;
             eprintln!(
-                "[WARN] not bipartite due to edge {:#?}, {:#?}",
+                "[WARN] not bipartite due to edge {:?}, {:?}",
                 self.graph.nodes.get(src).unwrap(),
                 self.graph.nodes.get(dst).unwrap()
             );
@@ -151,7 +150,7 @@ impl<'a, T: Copy + Debug, U: Debug> BFS<'a, T, U> {
     }
 }
 
-impl<'a, T: Copy + Debug, U: Debug> Iterator for BFS<'a, T, U> {
+impl<'a, T: Copy + Debug + Ord, U: Debug> Iterator for BFS<'a, T, U> {
     type Item = DefaultKey;
 
     fn next(&mut self) -> Option<Self::Item> {

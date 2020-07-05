@@ -4,5 +4,5 @@ extern crate lazy_static;
 pub mod bfs;
 pub mod dfs;
 pub mod dfs2;
-pub mod node_traversal;
+pub mod node_storage;
 pub mod graph;

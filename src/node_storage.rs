@@ -3,23 +3,24 @@ use slotmap::{DefaultKey, SecondaryMap};
 use crate::graph::Graph;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
-pub(crate) enum TraversalKind {
+pub(crate) enum StorageKind {
     BFSQueue,
     DFSStack,
     LexicographicalTopologicalBinaryHeap,
 }
 
-pub(crate) struct NodeTraversal<'a, T: Copy + Debug + Ord, U: Debug> {
-    kind: TraversalKind,
+#[derive(Debug)]
+pub(crate) struct NodeStorage<'a, T: Copy + Debug + Ord, U: Debug> {
+    kind: StorageKind,
     graph: &'a Graph<T, U>,
     queue: Option<VecDeque<DefaultKey>>,
     stack: Option<Vec<DefaultKey>>,
     heap: Option<BinaryHeap<DefaultKey>>,
 }
 
-impl<'a, T: Copy + Debug + Ord, U: Debug> NodeTraversal<'a, T, U> {
-    pub(crate) fn new(g: &'a Graph<T, U>, kind: TraversalKind) -> Self {
-        let mut ret = NodeTraversal{
+impl<'a, T: Copy + Debug + Ord, U: Debug> NodeStorage<'a, T, U> {
+    pub(crate) fn new(g: &'a Graph<T, U>, kind: StorageKind) -> Self {
+        let mut ret = NodeStorage{
             kind: kind,
             graph: g,
             queue: None,
@@ -27,13 +28,13 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> NodeTraversal<'a, T, U> {
             heap: None,
         };
         match kind {
-            TraversalKind::BFSQueue => {
+            StorageKind::BFSQueue => {
                 ret.queue = Some(VecDeque::new());
             },
-            TraversalKind::DFSStack => {
+            StorageKind::DFSStack => {
                 ret.stack = Some(Vec::new());
             },
-            TraversalKind::LexicographicalTopologicalBinaryHeap => {
+            StorageKind::LexicographicalTopologicalBinaryHeap => {
                 ret.heap = Some(BinaryHeap::new());
             }
         }
@@ -42,17 +43,17 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> NodeTraversal<'a, T, U> {
 
     pub(crate) fn push(&mut self, elem: DefaultKey) {
         match self.kind {
-            TraversalKind::BFSQueue => {
+            StorageKind::BFSQueue => {
                 if let Some(ref mut storage) = self.queue {
                     (*storage).push_back(elem);
                 }
             },
-            TraversalKind::DFSStack => {
+            StorageKind::DFSStack => {
                 if let Some(ref mut storage) = self.stack {
                     (*storage).push(elem);
                 }
             },
-            TraversalKind::LexicographicalTopologicalBinaryHeap => {
+            StorageKind::LexicographicalTopologicalBinaryHeap => {
                 if let Some(ref mut storage) = self.heap {
                     (*storage).push(elem);
                 }
@@ -62,21 +63,21 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> NodeTraversal<'a, T, U> {
 
     pub(crate) fn pop(&mut self) -> Option<DefaultKey> {
         return match self.kind {
-            TraversalKind::BFSQueue => {
+            StorageKind::BFSQueue => {
                 if let Some(ref mut storage) = self.queue {
                     (*storage).pop_front()
                 } else {
                     None
                 }
             },
-            TraversalKind::DFSStack => {
+            StorageKind::DFSStack => {
                 if let Some(ref mut storage) = self.stack {
                     (*storage).pop()
                 } else {
                     None
                 }
             },
-            TraversalKind::LexicographicalTopologicalBinaryHeap => {
+            StorageKind::LexicographicalTopologicalBinaryHeap => {
                 if let Some(ref mut storage) = self.stack {
                     (*storage).pop()
                 } else {
@@ -88,21 +89,21 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> NodeTraversal<'a, T, U> {
 
     pub(crate) fn is_empty(&self) -> Option<bool> {
         return match self.kind {
-            TraversalKind::BFSQueue => {
+            StorageKind::BFSQueue => {
                 if let Some(ref storage) = self.queue {
                     Some((*storage).is_empty())
                 } else {
                     None
                 }
             },
-            TraversalKind::DFSStack => {
+            StorageKind::DFSStack => {
                 if let Some(ref storage) = self.stack {
                     Some((*storage).is_empty())
                 } else {
                     None
                 }
             },
-            TraversalKind::LexicographicalTopologicalBinaryHeap => {
+            StorageKind::LexicographicalTopologicalBinaryHeap => {
                 if let Some(ref storage) = self.heap {
                     Some((*storage).is_empty())
                 } else {

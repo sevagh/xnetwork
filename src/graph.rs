@@ -1,6 +1,7 @@
 use crate::{
     bfs::BFS,
     dfs::{DFS, NULL_KEY},
+    dfs2::DFS2,
 };
 use slotmap::{DefaultKey, SecondaryMap, SlotMap, SparseSecondaryMap};
 use std::{cmp::Ord, fmt::Debug};
@@ -147,6 +148,10 @@ impl<T: Copy + Debug + Ord, U: Debug> Graph<T, U> {
 
     pub fn dfs(&self) -> DFS<T, U> {
         DFS::for_graph(self)
+    }
+
+    pub fn dfs2(&self) -> DFS2<T, U> {
+        DFS2::for_graph(self)
     }
 }
 

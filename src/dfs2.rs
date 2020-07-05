@@ -37,7 +37,7 @@ impl error::Error for TopologicalSortError {
 }
 
 #[derive(Debug)]
-pub struct DFS<'a, T: Copy + Debug + Ord, U: Debug> {
+pub struct DFS2<'a, T: Copy + Debug + Ord, U: Debug> {
     graph: &'a Graph<T, U>,
 
     processed: SecondaryMap<DefaultKey, bool>,
@@ -47,6 +47,7 @@ pub struct DFS<'a, T: Copy + Debug + Ord, U: Debug> {
     exit_time: SecondaryMap<DefaultKey, usize>,
 
     to_yield: VecDeque<DefaultKey>,
+    stack: Vec<DefaultKey>,
     n_edges: usize,
     time: usize,
     finished: bool,
@@ -54,9 +55,9 @@ pub struct DFS<'a, T: Copy + Debug + Ord, U: Debug> {
     lexicographical: bool,
 }
 
-impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
+impl<'a, T: Copy + Debug + Ord, U: Debug> DFS2<'a, T, U> {
     pub(crate) fn for_graph(g: &'a Graph<T, U>) -> Self {
-        let mut dfs = DFS {
+        let mut dfs = DFS2 {
             graph: g,
             processed: SecondaryMap::with_capacity(g.nodes.len()),
             discovered: SecondaryMap::with_capacity(g.nodes.len()),
@@ -250,7 +251,7 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
     }
 }
 
-impl<'a, T: Copy + Debug + Ord, U: Debug> Iterator for DFS<'a, T, U> {
+impl<'a, T: Copy + Debug + Ord, U: Debug> Iterator for DFS2<'a, T, U> {
     type Item = DefaultKey;
 
     fn next(&mut self) -> Option<Self::Item> {

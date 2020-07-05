@@ -1,6 +1,7 @@
 use crate::{graph::{find_path, Graph}, node_storage::{NodeStorage, StorageKind}};
 use slotmap::{DefaultKey, SecondaryMap};
 use std::{cmp::Ord, collections::VecDeque, error, fmt, fmt::Debug, result};
+use linked_hash_set::LinkedHashSet;
 
 lazy_static! {
     pub(crate) static ref NULL_KEY: DefaultKey = DefaultKey::default();
@@ -48,7 +49,7 @@ pub struct DFS2<'a, T: Copy + Debug + Ord, U: Debug> {
 
     to_yield: VecDeque<DefaultKey>,
     stack: NodeStorage<'a, T, U>,
-    parent_stack: Vec<DefaultKey>,
+    parent_stack: LinkedHashSet<DefaultKey>,
     n_edges: usize,
     time: usize,
     finished: bool,
@@ -66,8 +67,8 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS2<'a, T, U> {
             entry_time: SecondaryMap::with_capacity(g.nodes.len()),
             exit_time: SecondaryMap::with_capacity(g.nodes.len()),
             to_yield: VecDeque::with_capacity(g.nodes.len()),
-            stack: NodeStorage::new(g, StorageKind::DFSStack),
-            parent_stack: Vec::new(),
+            stack: NodeStorage::new(g, StorageKind::LexicographicalStack),
+            parent_stack: LinkedHashSet::new(),
             n_edges: 0,
             time: 0,
             finished: false,
@@ -159,13 +160,19 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS2<'a, T, U> {
 
         let mut node: DefaultKey;
 
+        println!("self.stack: {:?}", self.stack.heap);
         self.stack.push(start);
+        println!("self.stack: {:?}", self.stack.heap);
 
         'outer: while !self.stack.is_empty().unwrap() || !self.parent_stack.is_empty() {
             node = match self.stack.pop() {
-                Some(x) => x,
+                Some(x) => {
+                    println!("got a thing off the node stack!"); 
+                    x
+                }
                 None => {
-                    match self.parent_stack.pop() {
+                    println!("the node stack is empty!"); 
+                    match self.parent_stack.pop_front() {
                         Some(x) => x,
                         None => panic!("what state are you in?"),
                     }
@@ -184,6 +191,8 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS2<'a, T, U> {
             self.process_node_early(node);
 
             if let Some(edge_list) = self.graph.edges.get(node) {
+                // accumulate all possible nodes in self.stack
+                // which will do a lexicographical sort on insertion
                 for edge in edge_list.iter() {
                     if !self.discovered.get(edge.dst).unwrap() {
                         self.parent.insert(edge.dst, node);
@@ -194,10 +203,10 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS2<'a, T, U> {
 
                         println!("\tkicking off recursion from {:?} to {:?}", node, edge.dst);
                         println!("\n");
-                        self.parent_stack.push(node);
+                        self.parent_stack.insert(node);
                         self.stack.push(edge.dst);
 
-                        continue 'outer;
+                        //continue 'outer;
                     } else if (!self.processed.get(edge.dst).unwrap()
                         && *(self.parent.get(node).unwrap()) != edge.dst)
                         || self.graph.directed
@@ -210,6 +219,9 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS2<'a, T, U> {
                         }
                     }
                 }
+                println!("filled parent stack: {:?}", self.parent_stack);
+                println!("filled heap stack: {:?}", self.stack.heap);
+                continue 'outer;
             }
 
             self.process_node_late(node);

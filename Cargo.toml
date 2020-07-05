@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 slotmap = "0.4"
 lazy_static = "1.4.0"
+linked_hash_set = "0.1.3"

@@ -162,6 +162,7 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
     fn do_dfs_priv(&mut self, start: &[DefaultKey]) -> TopologicalSortResult<()> {
         let mut stack1 = NodeStorage::new(self.graph, self.storage_kind);
         //let mut stack2 = NodeStorage::new(self.graph, self.storage_kind);
+        //let mut stack2 = LinkedHashSet::with_capacity(self.graph.nodes.len());
         let mut stack2 = LinkedHashSet::new();
 
         if self.finished {
@@ -187,7 +188,7 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
                 // accumulate all possible nodes in stack1
                 // which will do a lexicographical sort on insertion
                 if !edge_list.is_empty() {
-                    stack2.insert(node);
+                    stack2.insert_if_absent(node);
 
                     for edge in edge_list.iter() {
                         if !self.discovered.get(edge.dst).unwrap() {
@@ -225,7 +226,6 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
 
         while !stack2.is_empty() {
             node = stack2.pop_back().unwrap();
-            self.graph.print_info(node);
 
             if *self.processed.get(node).unwrap() {
                 continue;

@@ -22,8 +22,9 @@ pub(crate) struct HeapEntry<T: Copy + Debug + Ord> {
 
 impl<T: Copy + Debug + Ord> Ord for HeapEntry<T> {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.indegree
-            .cmp(&other.indegree)
+        other
+            .indegree
+            .cmp(&self.indegree)
             .then_with(|| other.node_value.cmp(&self.node_value))
     }
 }

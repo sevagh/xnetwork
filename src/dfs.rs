@@ -1,6 +1,7 @@
-use crate::graph::{find_path, Graph};
+use crate::{graph::{find_path, Graph}, node_storage::{NodeStorage, StorageKind}};
 use slotmap::{DefaultKey, SecondaryMap};
 use std::{cmp::Ord, collections::VecDeque, error, fmt, fmt::Debug, result};
+use linked_hash_set::LinkedHashSet;
 
 lazy_static! {
     pub(crate) static ref NULL_KEY: DefaultKey = DefaultKey::default();
@@ -47,6 +48,8 @@ pub struct DFS<'a, T: Copy + Debug + Ord, U: Debug> {
     exit_time: SecondaryMap<DefaultKey, usize>,
 
     to_yield: VecDeque<DefaultKey>,
+    storage_kind: StorageKind,
+    parent_stack: LinkedHashSet<DefaultKey>,
     n_edges: usize,
     time: usize,
     finished: bool,
@@ -64,6 +67,8 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
             entry_time: SecondaryMap::with_capacity(g.nodes.len()),
             exit_time: SecondaryMap::with_capacity(g.nodes.len()),
             to_yield: VecDeque::with_capacity(g.nodes.len()),
+            storage_kind: StorageKind::DFSStack,
+            parent_stack: LinkedHashSet::new(),
             n_edges: 0,
             time: 0,
             finished: false,
@@ -71,6 +76,20 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
             lexicographical: false,
         };
         dfs.init();
+        dfs
+    }
+
+    pub(crate) fn for_graph_topo(g: &'a Graph<T, U>) -> Self {
+        let mut dfs = DFS::for_graph(g);
+        dfs.topological = true;
+        dfs
+    }
+
+    pub(crate) fn for_graph_lexi_topo(g: &'a Graph<T, U>) -> Self {
+        let mut dfs = DFS::for_graph(g);
+        dfs.topological = true;
+        dfs.lexicographical = true;
+        dfs.storage_kind = StorageKind::LexicographicalStack;
         dfs
     }
 
@@ -100,15 +119,13 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
             }
         }
 
-        if self.do_dfs(starting_node.unwrap()).is_err() {
+        if self.do_dfs_priv(starting_node.unwrap()).is_err() {
             return Err(TopologicalSortError);
         }
 
         for k in self.graph.nodes.keys() {
-            println!("checking node: {:?}", k);
             if !self.discovered.get(k).unwrap() {
-                println!("undiscovered! doing...");
-                if self.do_dfs(k).is_err() {
+                if self.do_dfs_priv(k).is_err() {
                     return Err(TopologicalSortError);
                 }
             }
@@ -124,20 +141,22 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
         self.topological = true;
         self.lexicographical = true;
 
-        let mut starting_node: Option<DefaultKey> = None;
+        let mut starting_nodes: Vec<DefaultKey> = vec![];
         for k in self.graph.nodes.keys() {
             if self.graph.indegree(k) == 0 {
-                starting_node = Some(k);
-                break;
+                starting_nodes.push(k);
             }
         }
+        starting_nodes.sort_by_key(|k| {
+            self.graph.nodes.get(*k).unwrap()
+        });
 
-        if self.do_dfs(starting_node.unwrap()).is_err() {
+        if self.do_dfs_priv(starting_nodes[0]).is_err() {
             return Err(TopologicalSortError);
         }
 
         for k in self.graph.nodes.keys() {
-            if !self.discovered.get(k).unwrap() && self.do_dfs(k).is_err() {
+            if !self.discovered.get(k).unwrap() && self.do_dfs_priv(k).is_err() {
                 return Err(TopologicalSortError);
             }
         }
@@ -145,55 +164,84 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
     }
 
     pub fn do_dfs(&mut self, node: DefaultKey) -> TopologicalSortResult<()> {
+        self.do_dfs_priv(node)
+    }
+
+    fn do_dfs_priv(&mut self, start: DefaultKey) -> TopologicalSortResult<()> {
+        let mut stack = NodeStorage::new(self.graph, self.storage_kind);
+
         if self.finished {
             return Ok(());
         }
 
-        println!("discovering, incrementing time, entry time for node {:?}", node);
-        self.graph.print_info(node);
+        let mut node: DefaultKey;
 
-        self.discovered.insert(node, true);
-        self.time += 1;
+        stack.push(start);
 
-        self.entry_time.insert(node, self.time);
+        'outer: while !stack.is_empty().unwrap() {
+            node = stack.pop().unwrap();
 
-        self.process_node_early(node);
+            self.graph.print_info(node);
 
-        if let Some(edge_list) = self.graph.edges.get(node) {
-            for edge in edge_list.iter() {
-                if !self.discovered.get(edge.dst).unwrap() {
-                    self.parent.insert(edge.dst, node);
+            self.discovered.insert(node, true);
+            self.time += 1;
 
-                    if self.process_edge(node, edge.dst).is_err() && self.lexicographical {
-                        return Err(TopologicalSortError);
-                    }
+            self.entry_time.insert(node, self.time);
 
-                    println!("\tkicking off recursion from {:?} to {:?}", node, edge.dst);
-                    println!("\n");
-                    if self.do_dfs(edge.dst).is_err() {
-                        return Err(TopologicalSortError);
-                    }
+            self.process_node_early(node);
+            self.parent_stack.insert(node);
 
-                    continue;
-                } else if (!self.processed.get(edge.dst).unwrap()
-                    && *(self.parent.get(node).unwrap()) != edge.dst)
-                    || self.graph.directed
-                {
-                    if self.process_edge(node, edge.dst).is_err() && self.lexicographical {
-                        return Err(TopologicalSortError);
-                    }
-                    if self.finished {
-                        return Ok(());
+            if let Some(edge_list) = self.graph.edges.get(node) {
+                // accumulate all possible nodes in stack
+                // which will do a lexicographical sort on insertion
+                for edge in edge_list.iter() {
+                    if !self.discovered.get(edge.dst).unwrap() {
+                        self.parent.insert(edge.dst, node);
+
+                        if self.process_edge(node, edge.dst).is_err() {
+                            println!("A");
+                            return Err(TopologicalSortError);
+                        }
+
+                        stack.push(edge.dst);
+
+                        //continue 'outer;
+                    } else if (!self.processed.get(edge.dst).unwrap()
+                        && *(self.parent.get(node).unwrap()) != edge.dst)
+                        || self.graph.directed
+                    {
+                        if self.process_edge(node, edge.dst).is_err() {
+                            println!("B");
+                            return Err(TopologicalSortError);
+                        }
+                        if self.finished {
+                            return Ok(());
+                        }
                     }
                 }
+                continue 'outer;
             }
+
+            self.process_node_late(node);
+            self.time += 1;
+            self.exit_time.insert(node, self.time);
+            self.processed.insert(node, true);
         }
 
-        self.process_node_late(node);
-        self.time += 1;
-        self.exit_time.insert(node, self.time);
-        self.processed.insert(node, true);
+        // pop the remnants and finish up
+        while !self.parent_stack.is_empty() {
+            node = self.parent_stack.pop_back().unwrap();
 
+            // skip already processed nodes
+            if *self.processed.get(node).unwrap() {
+                continue;
+            }
+
+            self.process_node_late(node);
+            self.time += 1;
+            self.exit_time.insert(node, self.time);
+            self.processed.insert(node, true);
+        }
         Ok(())
     }
 
@@ -210,6 +258,7 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
     }
 
     fn process_edge(&mut self, src: DefaultKey, dst: DefaultKey) -> TopologicalSortResult<()> {
+        println!("process edge {:?} {:?}", src, dst);
         if self.classify_edge(src, dst) == EdgeKind::Back {
             if !self.topological {
                 // check for back edges
@@ -223,9 +272,10 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
                 if self.n_edges == self.graph.n_edges() {
                     self.finished = true;
                 }
-            } else if self.lexicographical {
+            } /*else {
+                println!("back edge!!! not a DAG!!");
                 return Err(TopologicalSortError);
-            }
+            }*/
         }
         self.n_edges += 1;
         Ok(())
@@ -277,7 +327,7 @@ mod tests {
         g.add_edge(tristram, alpha_centauri, None);
 
         let mut dfs = g.dfs();
-        dfs.do_dfs(tristram).unwrap();
+        dfs.do_dfs_priv(tristram).unwrap();
 
         for visited_node in dfs {
             println!("dfs visited node: {:#?}", visited_node);
@@ -298,7 +348,7 @@ mod tests {
         g.add_edge(c, b, None);
 
         let mut dfs = g.dfs();
-        dfs.do_dfs(a).unwrap();
+        dfs.do_dfs_priv(a).unwrap();
 
         for visited_node in dfs {
             println!("dfs visited node: {:#?}", visited_node);
@@ -318,7 +368,7 @@ mod tests {
         g.add_edge(c, b, None);
 
         let mut dfs = g.dfs();
-        dfs.do_dfs(a).unwrap();
+        dfs.do_dfs_priv(a).unwrap();
 
         assert_eq!(dfs.next(), Some(a));
         assert_eq!(dfs.next(), Some(c));
@@ -350,7 +400,7 @@ mod tests {
         let mut dfs_from_b = g.dfs();
 
         // kick off the dfs with the starting node
-        dfs_from_b.do_dfs(b).unwrap();
+        dfs_from_b.do_dfs_priv(b).unwrap();
 
         for next in dfs_from_b {
             g.print_info(next);
@@ -361,7 +411,7 @@ mod tests {
         let mut dfs_from_f = g.dfs();
 
         // kick off the dfs with the starting node
-        dfs_from_f.do_dfs(f).unwrap();
+        dfs_from_f.do_dfs_priv(f).unwrap();
 
         for next in dfs_from_f {
             g.print_info(next);
@@ -388,7 +438,7 @@ mod tests {
         g1.add_edge(c1, a1, None);
 
         let mut dfs1 = g1.dfs();
-        dfs1.do_dfs(a1).unwrap();
+        dfs1.do_dfs_priv(a1).unwrap();
 
         assert_eq!(dfs1.next(), Some(a1));
         assert_eq!(dfs1.next(), Some(b1));
@@ -415,26 +465,26 @@ mod tests {
         g2.add_edge(c2, a2, None);
         g2.add_edge(a2, d2, None);
 
-        let mut dfs2 = g2.dfs();
-        dfs2.do_dfs(a2).unwrap();
+        let mut dfs = g2.dfs();
+        dfs.do_dfs_priv(a2).unwrap();
 
-        assert_eq!(dfs2.next(), Some(a2));
-        assert_eq!(dfs2.next(), Some(b2));
-        assert_eq!(dfs2.next(), Some(c2));
-        assert_eq!(dfs2.next(), Some(d2));
-        assert_eq!(dfs2.next(), None);
-        assert_eq!(dfs2.n_edges, g2.n_edges());
+        assert_eq!(dfs.next(), Some(a2));
+        assert_eq!(dfs.next(), Some(b2));
+        assert_eq!(dfs.next(), Some(c2));
+        assert_eq!(dfs.next(), Some(d2));
+        assert_eq!(dfs.next(), None);
+        assert_eq!(dfs.n_edges, g2.n_edges());
         println!(
             "graph edges 2: {}, dfs n_edges: {}",
             g2.n_edges(),
-            dfs2.n_edges
+            dfs.n_edges
         );
     }
 
     #[test]
     fn wont_topological_sort_undirected() {
         let g = Graph::<i32, &str>::new_undirected();
-        let mut dfs = g.dfs();
+        let mut dfs = g.topological_sort();
         assert!(dfs.do_topological_sort().is_err());
     }
 
@@ -448,7 +498,7 @@ mod tests {
 
         g.add_edge(tristram, alpha_centauri, None);
 
-        let mut dfs = g.dfs();
+        let mut dfs = g.topological_sort();
         dfs.do_topological_sort().unwrap();
 
         for visited_node in dfs {
@@ -481,7 +531,7 @@ mod tests {
         gr.add_edge(e, d, None);
         gr.add_edge(f, e, None);
 
-        let mut dfs = gr.dfs();
+        let mut dfs = gr.topological_sort();
         dfs.do_topological_sort().unwrap();
 
         for d in dfs {

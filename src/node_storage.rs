@@ -1,5 +1,5 @@
-use std::{cmp::{Ord, Ordering}, collections::{VecDeque}, error, fmt, fmt::Debug, result};
-use slotmap::{DefaultKey, SecondaryMap};
+use std::{cmp::Ord, collections::{VecDeque}, fmt::Debug};
+use slotmap::DefaultKey;
 use crate::graph::Graph;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -13,8 +13,8 @@ pub(crate) enum StorageKind {
 pub(crate) struct NodeStorage<'a, T: Copy + Debug + Ord, U: Debug> {
     kind: StorageKind,
     graph: &'a Graph<T, U>,
-    queue: Option<VecDeque<DefaultKey>>,
-    stack: Option<Vec<DefaultKey>>,
+    pub(crate) queue: Option<VecDeque<DefaultKey>>,
+    pub(crate) stack: Option<Vec<DefaultKey>>,
     pub(crate) heap: Option<Vec<DefaultKey>>,
 }
 
@@ -51,6 +51,7 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> NodeStorage<'a, T, U> {
             StorageKind::DFSStack => {
                 if let Some(ref mut storage) = self.stack {
                     (*storage).push(elem);
+                    storage.dedup();
                 }
             },
             StorageKind::LexicographicalStack => {
@@ -125,6 +126,32 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> NodeStorage<'a, T, U> {
             StorageKind::LexicographicalStack => {
                 if let Some(ref storage) = self.heap {
                     Some((*storage).is_empty())
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    pub(crate) fn contains(&self, elem: &DefaultKey) -> Option<bool> {
+        return match self.kind {
+            StorageKind::BFSQueue => {
+                if let Some(ref storage) = self.queue {
+                    Some((*storage).contains(elem))
+                } else {
+                    None
+                }
+            },
+            StorageKind::DFSStack => {
+                if let Some(ref storage) = self.stack {
+                    Some((*storage).contains(elem))
+                } else {
+                    None
+                }
+            },
+            StorageKind::LexicographicalStack => {
+                if let Some(ref storage) = self.heap {
+                    Some((*storage).contains(elem))
                 } else {
                     None
                 }

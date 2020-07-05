@@ -1,7 +1,6 @@
 use crate::{
     bfs::BFS,
     dfs::{DFS, NULL_KEY},
-    dfs2::DFS2,
 };
 use slotmap::{DefaultKey, SecondaryMap, SlotMap, SparseSecondaryMap};
 use std::{cmp::Ord, fmt::Debug};
@@ -150,8 +149,12 @@ impl<T: Copy + Debug + Ord, U: Debug> Graph<T, U> {
         DFS::for_graph(self)
     }
 
-    pub fn dfs2(&self) -> DFS2<T, U> {
-        DFS2::for_graph(self)
+    pub fn topological_sort(&self) -> DFS<T, U> {
+        DFS::for_graph_topo(self)
+    }
+
+    pub fn lexicographical_topological_sort(&self) -> DFS<T, U> {
+        DFS::for_graph_lexi_topo(self)
     }
 }
 

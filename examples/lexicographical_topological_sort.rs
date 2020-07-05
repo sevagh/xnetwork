@@ -39,7 +39,7 @@ fn main() {
     g.add_edge(b, e, None);
     g.add_edge(f, e, None);
 
-    let mut sorted_order = g.dfs();
+    let mut sorted_order = g.lexicographical_topological_sort();
     sorted_order.do_lexicographical_topological_sort().unwrap();
 
     println!("\n\n");

@@ -4,7 +4,10 @@ use std::{
     cmp::{Ord, Ordering, PartialOrd},
     collections::{BinaryHeap, VecDeque},
     fmt::Debug,
+    thread, time,
 };
+
+const TENS: time::Duration = time::Duration::from_secs(10);
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub(crate) enum StorageKind {
@@ -109,9 +112,12 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> NodeStorage<'a, T, U> {
                 }
             }
             StorageKind::LexicographicalHeap => {
-                //println!("DOING WILD SHIT WITH BINARY HEAP!!");
                 if let Some(ref mut storage) = self.heap {
-                    (*storage).pop().map(|x| x.slotmap_key)
+                    (*storage).pop().map(|x| {
+                        println!("storage: {:#?}", storage);
+                        thread::sleep(tens);
+                        x.slotmap_key
+                    })
                 } else {
                     None
                 }

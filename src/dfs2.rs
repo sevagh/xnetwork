@@ -48,6 +48,7 @@ pub struct DFS2<'a, T: Copy + Debug + Ord, U: Debug> {
 
     to_yield: VecDeque<DefaultKey>,
     stack: NodeStorage<'a, T, U>,
+    parent_stack: Vec<DefaultKey>,
     n_edges: usize,
     time: usize,
     finished: bool,
@@ -66,6 +67,7 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS2<'a, T, U> {
             exit_time: SecondaryMap::with_capacity(g.nodes.len()),
             to_yield: VecDeque::with_capacity(g.nodes.len()),
             stack: NodeStorage::new(g, StorageKind::DFSStack),
+            parent_stack: Vec::new(),
             n_edges: 0,
             time: 0,
             finished: false,
@@ -159,8 +161,17 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS2<'a, T, U> {
 
         self.stack.push(start);
 
-        'outer: while !self.stack.is_empty().unwrap() {
-            node = self.stack.pop().unwrap();
+        'outer: while !self.stack.is_empty().unwrap() || !self.parent_stack.is_empty() {
+            node = match self.stack.pop() {
+                Some(x) => x,
+                None => {
+                    match self.parent_stack.pop() {
+                        Some(x) => x,
+                        None => panic!("what state are you in?"),
+                    }
+                }
+            };
+
             println!("discovering, incrementing time, entry time for node {:?}", node);
 
             self.graph.print_info(node);
@@ -183,10 +194,7 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS2<'a, T, U> {
 
                         println!("\tkicking off recursion from {:?} to {:?}", node, edge.dst);
                         println!("\n");
-                        //if self.do_dfs_priv(edge.dst).is_err() {
-                        //    return Err(TopologicalSortError);
-                        //}
-                        self.stack.push(node);
+                        self.parent_stack.push(node);
                         self.stack.push(edge.dst);
 
                         continue 'outer;

@@ -38,7 +38,6 @@ pub struct DFS<'a, T: Copy + Debug + Ord, U: Debug> {
     processed: SecondaryMap<DefaultKey, bool>,
     discovered: SecondaryMap<DefaultKey, bool>,
     parent: SecondaryMap<DefaultKey, DefaultKey>,
-    //indegrees: SparseSecondaryMap<DefaultKey, usize>,
     entry_time: SecondaryMap<DefaultKey, usize>,
     exit_time: SecondaryMap<DefaultKey, usize>,
 
@@ -60,7 +59,6 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
             parent: SecondaryMap::with_capacity(g.nodes.len()),
             entry_time: SecondaryMap::with_capacity(g.nodes.len()),
             exit_time: SecondaryMap::with_capacity(g.nodes.len()),
-            //indegrees: g.indegrees.clone(),
             to_yield: Vec::with_capacity(g.nodes.len()),
             storage_kind: StorageKind::DFSStack,
             n_edges: 0,
@@ -161,9 +159,7 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
 
     fn do_dfs_priv(&mut self, start: &[DefaultKey]) -> TopologicalSortResult<()> {
         let mut stack1 = NodeStorage::new(self.graph, self.storage_kind);
-        //let mut stack2 = NodeStorage::new(self.graph, self.storage_kind);
-        //let mut stack2 = LinkedHashSet::with_capacity(self.graph.nodes.len());
-        let mut stack2 = LinkedHashSet::new();
+        let mut stack2 = LinkedHashSet::with_capacity(self.graph.nodes.len());
 
         if self.finished {
             return Ok(());

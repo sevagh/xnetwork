@@ -52,23 +52,21 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> Prim<'a, T, U> {
                             .is_some()
                     {
                         self.parent.insert(edge.dst, node);
-                        self.to_yield.push(edge.dst);
                     }
                 }
             }
 
             // pop the next lowest entry from the priority queue
-            if let Some((k, dist)) = self.distance.pop_with_weight() {
+            // stuff them in to_yield for the iterator
+            if let Some((k, _dist)) = self.distance.pop_with_weight() {
                 if !self.intree.get(k).unwrap() {
                     node = k;
-                    println!("popped {:?} with distance {} for next iter", k, dist);
+                    self.to_yield.push(k);
                 }
             }
         }
 
-        for (k, v) in self.parent.iter() {
-            println!("k: {:?}, v: {:?}", k, v);
-        }
+        self.to_yield.reverse();
     }
 }
 
@@ -91,17 +89,72 @@ mod tests {
         let a = g.add_node(0, Some("a"));
         let b = g.add_node(1, Some("b"));
         let c = g.add_node(2, Some("c"));
+        let d = g.add_node(3, Some("d"));
 
         g.add_edge(a, b, Some(5));
         g.add_edge(b, c, Some(2));
+        g.add_edge(b, d, Some(13));
+        g.add_edge(c, d, Some(4));
 
         let mut prim = g.mst_prim();
         prim.do_prim(a);
 
-        for visited_node in prim {
-            println!("prim mst: {:#?}", visited_node);
-        }
+        //for visited_node in prim {
+        //    println!("prim mst: {:#?}", visited_node);
+        //}
+        assert_eq!(prim.next(), Some(a));
+        assert_eq!(prim.next(), Some(b));
+        assert_eq!(prim.next(), Some(c));
+        assert_eq!(prim.next(), Some(d));
+        assert_eq!(prim.next(), None);
+    }
 
-        assert_eq!(2 + 2, 4);
+    #[test]
+    fn test_prim_mst() {
+        /*
+         * testcase from skiena, pp196 figure 6.3
+         */
+
+        let mut graph = Graph::<i32, &str>::new_undirected();
+
+        let a = graph.add_node(0, Some("a"));
+        let b = graph.add_node(1, Some("b"));
+        let c = graph.add_node(2, Some("c"));
+        let d = graph.add_node(3, Some("d"));
+        let e = graph.add_node(4, Some("e"));
+        let f = graph.add_node(5, Some("f"));
+        let g = graph.add_node(6, Some("g"));
+
+        graph.add_edge(a, b, Some(5));
+        graph.add_edge(a, c, Some(7));
+        graph.add_edge(a, d, Some(12));
+
+        graph.add_edge(b, c, Some(9));
+
+        graph.add_edge(b, e, Some(7));
+        graph.add_edge(e, g, Some(2));
+        graph.add_edge(e, c, Some(4));
+
+        graph.add_edge(e, f, Some(5));
+        graph.add_edge(f, g, Some(2));
+
+        graph.add_edge(d, g, Some(7));
+        graph.add_edge(d, c, Some(4));
+        graph.add_edge(c, g, Some(3));
+
+        let mut prim = graph.mst_prim();
+        prim.do_prim(a);
+
+        //for visited_node in prim {
+        //    println!("prim mst: {:?}", graph.print_info(visited_node));
+        //}
+        assert_eq!(prim.next(), Some(a));
+        assert_eq!(prim.next(), Some(b));
+        assert_eq!(prim.next(), Some(c));
+        assert_eq!(prim.next(), Some(g));
+        assert_eq!(prim.next(), Some(e));
+        assert_eq!(prim.next(), Some(f));
+        assert_eq!(prim.next(), Some(d));
+        assert_eq!(prim.next(), None);
     }
 }

@@ -95,7 +95,7 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> NodeStorage<'a, T, U> {
                     });
                 }
             }
-            _ => return,
+            _ => {}
         }
     }
 
@@ -205,24 +205,21 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> NodeStorage<'a, T, U> {
         }
     }
 
-    pub(crate) fn reduce_weight(&mut self, node: DefaultKey, cmp_weight: i32) -> Option<()> {
+    pub(crate) fn reduce_weight_to(&mut self, node: DefaultKey, cmp_weight: i32) -> Option<()> {
         let mut ret: Option<()> = None;
 
         if let StorageKind::PrimWeightPriority = self.kind {
             let mut v = self.priority_queue.take().unwrap().into_vec();
 
             for mut e in v.iter_mut() {
-                if e.slotmap_key == node {
-                    if cmp_weight < e.extra {
-                        e.extra = cmp_weight;
-                        ret = Some(());
-                    }
-                    break;
+                if e.slotmap_key == node && cmp_weight < e.extra {
+                    e.extra = cmp_weight;
+                    ret = Some(());
                 }
             }
 
-            self.heap.replace(v.into());
+            self.priority_queue.replace(v.into());
         }
-        return ret;
+        ret
     }
 }

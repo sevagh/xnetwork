@@ -1,6 +1,6 @@
 use crate::{
     graph::Graph,
-    node_storage::{NodeStorage,StorageKind},
+    node_storage::{NodeStorage, StorageKind},
 };
 use slotmap::{DefaultKey, SecondaryMap};
 use std::fmt::Debug;
@@ -37,30 +37,37 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> Prim<'a, T, U> {
 
     pub fn do_prim(&mut self, start: DefaultKey) {
         let mut node: DefaultKey = start;
-        let mut next_candidate: DefaultKey = start;
-        let mut weight: i32 = 0;
-        let mut dist: i32 = 0;
 
-        self.distance.push_weight(start, 0);
-
-        println!("dist: {:#?}", self.distance.priority_queue);
+        self.to_yield.push(node);
 
         while !self.intree.get(node).unwrap() {
             self.intree.insert(node, true);
 
             if let Some(edge_list) = self.graph.edges.get(node) {
                 for edge in edge_list.iter() {
-                    next_candidate = edge.dst;
-                    if self.distance.reduce_weight(next_candidate, edge.w.unwrap()).is_some() {
-                        self.parent.insert(next_candidate, node);
+                    if !self.intree.get(edge.dst).unwrap()
+                        && self
+                            .distance
+                            .reduce_weight_to(edge.dst, edge.w.unwrap())
+                            .is_some()
+                    {
+                        self.parent.insert(edge.dst, node);
+                        self.to_yield.push(edge.dst);
                     }
                 }
             }
 
-            // pop the lowest entry from the priority queue
+            // pop the next lowest entry from the priority queue
             if let Some((k, dist)) = self.distance.pop_with_weight() {
-                println!("gr8: {:?}, {}", k, dist);
+                if !self.intree.get(k).unwrap() {
+                    node = k;
+                    println!("popped {:?} with distance {} for next iter", k, dist);
+                }
             }
+        }
+
+        for (k, v) in self.parent.iter() {
+            println!("k: {:?}, v: {:?}", k, v);
         }
     }
 }

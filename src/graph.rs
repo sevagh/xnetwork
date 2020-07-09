@@ -1,7 +1,7 @@
 use crate::{
     bfs::BFS,
     dfs::{DFS, NULL_KEY},
-    weighted::{Prim},
+    weighted::Prim,
 };
 use slotmap::{DefaultKey, SecondaryMap, SlotMap, SparseSecondaryMap};
 use std::{cmp::Ord, fmt::Debug};

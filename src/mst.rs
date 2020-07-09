@@ -7,8 +7,32 @@ use slotmap::{DefaultKey, SecondaryMap};
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
     collections::{BinaryHeap, HashMap},
+    error, fmt,
     fmt::Debug,
+    result,
 };
+use unordered_pair::UnorderedPair;
+
+pub type MinimumSpanningTreeResult<T> = result::Result<T, MinimumSpanningTreeError>;
+
+#[derive(Debug)]
+pub struct MinimumSpanningTreeError;
+
+impl fmt::Display for MinimumSpanningTreeError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "not a dag")
+    }
+}
+
+impl error::Error for MinimumSpanningTreeError {
+    fn description(&self) -> &str {
+        "not a dag"
+    }
+
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        None
+    }
+}
 
 #[derive(Debug)]
 pub struct Prim<'a, T: Copy + Debug + Ord, U: Debug> {
@@ -65,8 +89,7 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> Prim<'a, T, U> {
                 if !self.intree.get(k).unwrap() {
                     node = k;
                     self.to_yield.push(EdgeMST {
-                        src: *self.parent.get(k).unwrap(),
-                        dst: k,
+                        nodes: UnorderedPair(*self.parent.get(k).unwrap(), k),
                         weight: dist,
                     });
                 }
@@ -87,8 +110,7 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> Iterator for Prim<'a, T, U> {
 
 #[derive(Debug, Copy, Clone)]
 pub struct EdgeMST {
-    src: DefaultKey,
-    dst: DefaultKey,
+    nodes: UnorderedPair<DefaultKey>,
     weight: i32,
 }
 
@@ -100,7 +122,7 @@ impl Ord for EdgeMST {
 
 impl PartialEq for EdgeMST {
     fn eq(&self, other: &Self) -> bool {
-        other.src.eq(&self.src) && other.dst.eq(&self.dst)
+        other.nodes.eq(&self.nodes)
     }
 }
 
@@ -141,8 +163,7 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> Kruskal<'a, T, U> {
 
             for e in self.graph.edges.get(k).unwrap() {
                 self.edge_heap.push(EdgeMST {
-                    src: k,
-                    dst: e.dst,
+                    nodes: UnorderedPair(k, e.dst),
                     weight: e.w.unwrap_or(i32::MAX),
                 })
             }
@@ -150,17 +171,17 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> Kruskal<'a, T, U> {
     }
 
     pub fn do_kruskal(&mut self) {
-        let mut src_idx: usize;
-        let mut dst_idx: usize;
+        let mut idx1: usize;
+        let mut idx2: usize;
 
         while !self.edge_heap.is_empty() {
             if let Some(next_cheapest_edge) = self.edge_heap.pop() {
-                src_idx = *self.node_idx_map.get(&next_cheapest_edge.src).unwrap();
-                dst_idx = *self.node_idx_map.get(&next_cheapest_edge.dst).unwrap();
+                idx1 = *self.node_idx_map.get(&next_cheapest_edge.nodes.0).unwrap();
+                idx2 = *self.node_idx_map.get(&next_cheapest_edge.nodes.1).unwrap();
 
-                if !self.set.same_set(src_idx, dst_idx) {
+                if !self.set.same_set(idx1, idx2) {
                     self.to_yield.push(next_cheapest_edge);
-                    self.set.union(src_idx, dst_idx);
+                    self.set.union(idx1, idx2);
                 }
             }
         }
@@ -194,7 +215,7 @@ mod tests {
         g.add_edge(b, d, Some(13));
         g.add_edge(c, d, Some(4));
 
-        let mut prim = g.mst_prim();
+        let mut prim = g.mst_prim().unwrap();
         prim.do_prim(a);
 
         //for visited_node in prim {
@@ -203,8 +224,7 @@ mod tests {
         assert_eq!(
             prim.next(),
             Some(EdgeMST {
-                src: a,
-                dst: b,
+                nodes: UnorderedPair(a, b),
                 weight: 5,
             })
         );
@@ -212,8 +232,7 @@ mod tests {
         assert_eq!(
             prim.next(),
             Some(EdgeMST {
-                src: b,
-                dst: c,
+                nodes: UnorderedPair(b, c),
                 weight: 2,
             })
         );
@@ -221,8 +240,7 @@ mod tests {
         assert_eq!(
             prim.next(),
             Some(EdgeMST {
-                src: c,
-                dst: d,
+                nodes: UnorderedPair(c, d),
                 weight: 4,
             })
         );
@@ -263,7 +281,7 @@ mod tests {
         graph.add_edge(d, c, Some(4));
         graph.add_edge(c, g, Some(3));
 
-        let mut prim = graph.mst_prim();
+        let mut prim = graph.mst_prim().unwrap();
         prim.do_prim(a);
 
         //for visited_node in prim {
@@ -272,48 +290,42 @@ mod tests {
         assert_eq!(
             prim.next(),
             Some(EdgeMST {
-                src: a,
-                dst: b,
+                nodes: UnorderedPair(a, b),
                 weight: 5,
             })
         );
         assert_eq!(
             prim.next(),
             Some(EdgeMST {
-                src: a,
-                dst: c,
+                nodes: UnorderedPair(a, c),
                 weight: 7,
             })
         );
         assert_eq!(
             prim.next(),
             Some(EdgeMST {
-                src: c,
-                dst: g,
+                nodes: UnorderedPair(c, g),
                 weight: 3,
             })
         );
         assert_eq!(
             prim.next(),
             Some(EdgeMST {
-                src: g,
-                dst: e,
+                nodes: UnorderedPair(g, e),
                 weight: 2,
             })
         );
         assert_eq!(
             prim.next(),
             Some(EdgeMST {
-                src: g,
-                dst: f,
+                nodes: UnorderedPair(g, f),
                 weight: 5,
             })
         );
         assert_eq!(
             prim.next(),
             Some(EdgeMST {
-                src: c,
-                dst: d,
+                nodes: UnorderedPair(c, d),
                 weight: 4,
             })
         );
@@ -334,7 +346,7 @@ mod tests {
         g.add_edge(b, d, Some(13));
         g.add_edge(c, d, Some(4));
 
-        let mut kruskal = g.mst_kruskal();
+        let mut kruskal = g.mst_kruskal().unwrap();
         kruskal.do_kruskal();
 
         //for visited_node in kruskal {
@@ -343,24 +355,21 @@ mod tests {
         assert_eq!(
             kruskal.next(),
             Some(EdgeMST {
-                src: b,
-                dst: c,
+                nodes: UnorderedPair(c, b),
                 weight: 2,
             })
         );
         assert_eq!(
             kruskal.next(),
             Some(EdgeMST {
-                src: c,
-                dst: d,
+                nodes: UnorderedPair(c, d),
                 weight: 4,
             })
         );
         assert_eq!(
             kruskal.next(),
             Some(EdgeMST {
-                src: a,
-                dst: b,
+                nodes: UnorderedPair(b, a),
                 weight: 5,
             })
         );
@@ -400,7 +409,7 @@ mod tests {
         graph.add_edge(d, c, Some(4));
         graph.add_edge(c, g, Some(3));
 
-        let mut kruskal = graph.mst_kruskal();
+        let mut kruskal = graph.mst_kruskal().unwrap();
         kruskal.do_kruskal();
 
         //for edge in kruskal {
@@ -410,48 +419,42 @@ mod tests {
         assert_eq!(
             kruskal.next(),
             Some(EdgeMST {
-                src: e,
-                dst: g,
+                nodes: UnorderedPair(e, g),
                 weight: 2,
             })
         );
         assert_eq!(
             kruskal.next(),
             Some(EdgeMST {
-                src: f,
-                dst: g,
+                nodes: UnorderedPair(f, g),
                 weight: 2,
             })
         );
         assert_eq!(
             kruskal.next(),
             Some(EdgeMST {
-                src: g,
-                dst: c,
+                nodes: UnorderedPair(g, c),
                 weight: 3,
             })
         );
         assert_eq!(
             kruskal.next(),
             Some(EdgeMST {
-                src: d,
-                dst: c,
+                nodes: UnorderedPair(d, c),
                 weight: 4,
             })
         );
         assert_eq!(
             kruskal.next(),
             Some(EdgeMST {
-                src: a,
-                dst: b,
+                nodes: UnorderedPair(a, b),
                 weight: 5,
             })
         );
         assert_eq!(
             kruskal.next(),
             Some(EdgeMST {
-                src: b,
-                dst: e,
+                nodes: UnorderedPair(b, e),
                 weight: 7,
             })
         );

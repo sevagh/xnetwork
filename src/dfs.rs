@@ -10,7 +10,7 @@ lazy_static! {
     pub(crate) static ref NULL_KEY: DefaultKey = DefaultKey::default();
 }
 
-type TopologicalSortResult<T> = result::Result<T, TopologicalSortError>;
+pub type TopologicalSortResult<T> = result::Result<T, TopologicalSortError>;
 
 #[derive(Debug)]
 pub struct TopologicalSortError;
@@ -434,8 +434,8 @@ mod tests {
     #[test]
     fn wont_topological_sort_undirected() {
         let g = Graph::<i32, &str>::new_undirected();
-        let mut dfs = g.topological_sort();
-        assert!(dfs.do_topological_sort().is_err());
+        let dfs = g.topological_sort();
+        assert!(dfs.is_err());
     }
 
     #[test]
@@ -448,7 +448,7 @@ mod tests {
 
         g.add_edge(tristram, alpha_centauri, None);
 
-        let mut dfs = g.topological_sort();
+        let mut dfs = g.topological_sort().unwrap();
         dfs.do_topological_sort().unwrap();
 
         for visited_node in dfs {
@@ -481,7 +481,7 @@ mod tests {
         gr.add_edge(e, d, None);
         gr.add_edge(f, e, None);
 
-        let mut dfs = gr.topological_sort();
+        let mut dfs = gr.topological_sort().unwrap();
         dfs.do_topological_sort().unwrap();
 
         for d in dfs {
@@ -510,7 +510,7 @@ mod tests {
         g1.add_edge(b1, c1, None);
         g1.add_edge(c1, a1, None);
 
-        let mut dfs1 = g1.topological_sort();
+        let mut dfs1 = g1.topological_sort().unwrap();
         assert!(dfs1.do_topological_sort().is_err());
     }
 
@@ -541,7 +541,7 @@ mod tests {
         g.add_edge(i, e, None);
         g.add_edge(h, i, None);
 
-        let mut sorted_order = g.lexicographical_topological_sort();
+        let mut sorted_order = g.lexicographical_topological_sort().unwrap();
         sorted_order.do_lexicographical_topological_sort().unwrap();
 
         let lexicographical_traverse_order = sorted_order
@@ -696,7 +696,7 @@ mod tests {
         g.add_edge(t, x, None);
         g.add_edge(r, x, None);
 
-        let mut sorted_order = g.lexicographical_topological_sort();
+        let mut sorted_order = g.lexicographical_topological_sort().unwrap();
 
         // possible starting edges are 'Q', 'R', 'B'
         sorted_order.do_lexicographical_topological_sort().unwrap();

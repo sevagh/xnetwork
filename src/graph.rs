@@ -1,7 +1,7 @@
 use crate::{
     bfs::BFS,
-    dfs::{DFS, NULL_KEY},
-    mst::{Kruskal, Prim},
+    dfs::{TopologicalSortError, TopologicalSortResult, DFS, NULL_KEY},
+    mst::{Kruskal, MinimumSpanningTreeError, MinimumSpanningTreeResult, Prim},
 };
 use slotmap::{DefaultKey, SecondaryMap, SlotMap, SparseSecondaryMap};
 use std::{cmp::Ord, fmt::Debug};
@@ -150,20 +150,32 @@ impl<T: Copy + Debug + Ord, U: Debug> Graph<T, U> {
         DFS::for_graph(self)
     }
 
-    pub fn topological_sort(&self) -> DFS<T, U> {
-        DFS::for_graph_topo(self)
+    pub fn topological_sort(&self) -> TopologicalSortResult<DFS<T, U>> {
+        if !self.directed {
+            return Err(TopologicalSortError);
+        }
+        Ok(DFS::for_graph_topo(self))
     }
 
-    pub fn lexicographical_topological_sort(&self) -> DFS<T, U> {
-        DFS::for_graph_lexi_topo(self)
+    pub fn lexicographical_topological_sort(&self) -> TopologicalSortResult<DFS<T, U>> {
+        if !self.directed {
+            return Err(TopologicalSortError);
+        }
+        Ok(DFS::for_graph_lexi_topo(self))
     }
 
-    pub fn mst_prim(&self) -> Prim<T, U> {
-        Prim::for_graph(self)
+    pub fn mst_prim(&self) -> MinimumSpanningTreeResult<Prim<T, U>> {
+        if self.directed {
+            return Err(MinimumSpanningTreeError);
+        }
+        Ok(Prim::for_graph(self))
     }
 
-    pub fn mst_kruskal(&self) -> Kruskal<T, U> {
-        Kruskal::for_graph(self)
+    pub fn mst_kruskal(&self) -> MinimumSpanningTreeResult<Kruskal<T, U>> {
+        if self.directed {
+            return Err(MinimumSpanningTreeError);
+        }
+        Ok(Kruskal::for_graph(self))
     }
 }
 

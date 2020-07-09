@@ -78,6 +78,44 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> Iterator for Prim<'a, T, U> {
     }
 }
 
+#[derive(Debug)]
+pub struct Kruskal<'a, T: Copy + Debug + Ord, U: Debug> {
+    graph: &'a Graph<T, U>,
+    to_yield: Vec<DefaultKey>,
+    parent: SecondaryMap<DefaultKey, DefaultKey>,
+}
+
+impl<'a, T: Copy + Debug + Ord, U: Debug> Kruskal<'a, T, U> {
+    pub(crate) fn for_graph(g: &'a Graph<T, U>) -> Self {
+        let mut krusk = Kruskal {
+            graph: g,
+            to_yield: vec![],
+            parent: SecondaryMap::with_capacity(g.nodes.len()),
+        };
+        krusk.init();
+        krusk
+    }
+
+    fn init(&mut self) {
+        for k in self.graph.nodes.keys() {
+            self.parent.insert(k, DefaultKey::default());
+        }
+    }
+
+    pub fn do_krusk(&mut self) {
+        self.to_yield.push(DefaultKey::default());
+        self.to_yield.reverse();
+    }
+}
+
+impl<'a, T: Copy + Debug + Ord, U: Debug> Iterator for Kruskal<'a, T, U> {
+    type Item = DefaultKey;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.to_yield.pop()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

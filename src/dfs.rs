@@ -10,7 +10,7 @@ lazy_static! {
     pub(crate) static ref NULL_KEY: DefaultKey = DefaultKey::default();
 }
 
-type TopologicalSortResult<T> = result::Result<T, TopologicalSortError>;
+pub type TopologicalSortResult<T> = result::Result<T, TopologicalSortError>;
 
 #[derive(Debug)]
 pub struct TopologicalSortError;
@@ -38,7 +38,6 @@ pub struct DFS<'a, T: Copy + Debug + Ord, U: Debug> {
     processed: SecondaryMap<DefaultKey, bool>,
     discovered: SecondaryMap<DefaultKey, bool>,
     parent: SecondaryMap<DefaultKey, DefaultKey>,
-    //indegrees: SparseSecondaryMap<DefaultKey, usize>,
     entry_time: SecondaryMap<DefaultKey, usize>,
     exit_time: SecondaryMap<DefaultKey, usize>,
 
@@ -60,7 +59,6 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
             parent: SecondaryMap::with_capacity(g.nodes.len()),
             entry_time: SecondaryMap::with_capacity(g.nodes.len()),
             exit_time: SecondaryMap::with_capacity(g.nodes.len()),
-            //indegrees: g.indegrees.clone(),
             to_yield: Vec::with_capacity(g.nodes.len()),
             storage_kind: StorageKind::DFSStack,
             n_edges: 0,
@@ -161,9 +159,7 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> DFS<'a, T, U> {
 
     fn do_dfs_priv(&mut self, start: &[DefaultKey]) -> TopologicalSortResult<()> {
         let mut stack1 = NodeStorage::new(self.graph, self.storage_kind);
-        //let mut stack2 = NodeStorage::new(self.graph, self.storage_kind);
-        //let mut stack2 = LinkedHashSet::with_capacity(self.graph.nodes.len());
-        let mut stack2 = LinkedHashSet::new();
+        let mut stack2 = LinkedHashSet::with_capacity(self.graph.nodes.len());
 
         if self.finished {
             return Ok(());
@@ -438,8 +434,8 @@ mod tests {
     #[test]
     fn wont_topological_sort_undirected() {
         let g = Graph::<i32, &str>::new_undirected();
-        let mut dfs = g.topological_sort();
-        assert!(dfs.do_topological_sort().is_err());
+        let dfs = g.topological_sort();
+        assert!(dfs.is_err());
     }
 
     #[test]
@@ -452,7 +448,7 @@ mod tests {
 
         g.add_edge(tristram, alpha_centauri, None);
 
-        let mut dfs = g.topological_sort();
+        let mut dfs = g.topological_sort().unwrap();
         dfs.do_topological_sort().unwrap();
 
         for visited_node in dfs {
@@ -485,7 +481,7 @@ mod tests {
         gr.add_edge(e, d, None);
         gr.add_edge(f, e, None);
 
-        let mut dfs = gr.topological_sort();
+        let mut dfs = gr.topological_sort().unwrap();
         dfs.do_topological_sort().unwrap();
 
         for d in dfs {
@@ -514,7 +510,7 @@ mod tests {
         g1.add_edge(b1, c1, None);
         g1.add_edge(c1, a1, None);
 
-        let mut dfs1 = g1.topological_sort();
+        let mut dfs1 = g1.topological_sort().unwrap();
         assert!(dfs1.do_topological_sort().is_err());
     }
 
@@ -545,7 +541,7 @@ mod tests {
         g.add_edge(i, e, None);
         g.add_edge(h, i, None);
 
-        let mut sorted_order = g.lexicographical_topological_sort();
+        let mut sorted_order = g.lexicographical_topological_sort().unwrap();
         sorted_order.do_lexicographical_topological_sort().unwrap();
 
         let lexicographical_traverse_order = sorted_order
@@ -700,7 +696,7 @@ mod tests {
         g.add_edge(t, x, None);
         g.add_edge(r, x, None);
 
-        let mut sorted_order = g.lexicographical_topological_sort();
+        let mut sorted_order = g.lexicographical_topological_sort().unwrap();
 
         // possible starting edges are 'Q', 'R', 'B'
         sorted_order.do_lexicographical_topological_sort().unwrap();

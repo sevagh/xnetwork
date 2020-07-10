@@ -1,6 +1,7 @@
 use crate::{
     bfs::BFS,
-    dfs::{DFS, NULL_KEY},
+    dfs::{TopologicalSortError, TopologicalSortResult, DFS, NULL_KEY},
+    mst::{Kruskal, MinimumSpanningTreeError, MinimumSpanningTreeResult, Prim},
 };
 use slotmap::{DefaultKey, SecondaryMap, SlotMap, SparseSecondaryMap};
 use std::{cmp::Ord, fmt::Debug};
@@ -8,7 +9,7 @@ use std::{cmp::Ord, fmt::Debug};
 #[derive(Debug, Clone)]
 pub(crate) struct Edge {
     pub(crate) dst: DefaultKey,
-    pub(crate) w: Option<f64>,
+    pub(crate) w: Option<i32>,
 }
 
 #[derive(Debug)]
@@ -88,7 +89,7 @@ impl<T: Copy + Debug + Ord, U: Debug> Graph<T, U> {
         k
     }
 
-    pub fn add_edge(&mut self, src: DefaultKey, dst: DefaultKey, weight: Option<f64>) {
+    pub fn add_edge(&mut self, src: DefaultKey, dst: DefaultKey, weight: Option<i32>) {
         let new_edge = Edge { dst, w: weight };
 
         if let Some(x) = self.outdegrees.get_mut(src) {
@@ -149,12 +150,32 @@ impl<T: Copy + Debug + Ord, U: Debug> Graph<T, U> {
         DFS::for_graph(self)
     }
 
-    pub fn topological_sort(&self) -> DFS<T, U> {
-        DFS::for_graph_topo(self)
+    pub fn topological_sort(&self) -> TopologicalSortResult<DFS<T, U>> {
+        if !self.directed {
+            return Err(TopologicalSortError);
+        }
+        Ok(DFS::for_graph_topo(self))
     }
 
-    pub fn lexicographical_topological_sort(&self) -> DFS<T, U> {
-        DFS::for_graph_lexi_topo(self)
+    pub fn lexicographical_topological_sort(&self) -> TopologicalSortResult<DFS<T, U>> {
+        if !self.directed {
+            return Err(TopologicalSortError);
+        }
+        Ok(DFS::for_graph_lexi_topo(self))
+    }
+
+    pub fn mst_prim(&self) -> MinimumSpanningTreeResult<Prim<T, U>> {
+        if self.directed {
+            return Err(MinimumSpanningTreeError);
+        }
+        Ok(Prim::for_graph(self))
+    }
+
+    pub fn mst_kruskal(&self) -> MinimumSpanningTreeResult<Kruskal<T, U>> {
+        if self.directed {
+            return Err(MinimumSpanningTreeError);
+        }
+        Ok(Kruskal::for_graph(self))
     }
 }
 

@@ -64,7 +64,7 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> Prim<'a, T, U> {
         }
     }
 
-    pub fn do_prim(&mut self, start: DefaultKey) {
+    pub fn do_prim(&mut self, start: DefaultKey) -> MinimumSpanningTreeResult<()> {
         let mut node: DefaultKey = start;
 
         while !self.intree.get(node).unwrap() {
@@ -72,13 +72,15 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> Prim<'a, T, U> {
 
             if let Some(edge_list) = self.graph.edges.get(node) {
                 for edge in edge_list.iter() {
-                    if !self.intree.get(edge.dst).unwrap()
-                        && self
-                            .distance
-                            .reduce_weight_to(edge.dst, edge.w.unwrap())
-                            .is_some()
-                    {
-                        self.parent.insert(edge.dst, node);
+                    match edge.w {
+                        Some(weight) => {
+                            if !self.intree.get(edge.dst).unwrap()
+                                && self.distance.reduce_weight_to(edge.dst, weight).is_some()
+                            {
+                                self.parent.insert(edge.dst, node);
+                            }
+                        }
+                        None => return Err(MinimumSpanningTreeError),
                     }
                 }
             }
@@ -97,6 +99,7 @@ impl<'a, T: Copy + Debug + Ord, U: Debug> Prim<'a, T, U> {
         }
 
         self.to_yield.reverse();
+        Ok(())
     }
 }
 
@@ -216,7 +219,7 @@ mod tests {
         g.add_edge(c, d, Some(4));
 
         let mut prim = g.mst_prim().unwrap();
-        prim.do_prim(a);
+        prim.do_prim(a).unwrap();
 
         //for visited_node in prim {
         //    println!("prim mst: {:#?}", visited_node);
@@ -282,7 +285,7 @@ mod tests {
         graph.add_edge(c, g, Some(3));
 
         let mut prim = graph.mst_prim().unwrap();
-        prim.do_prim(a);
+        prim.do_prim(a).unwrap();
 
         //for visited_node in prim {
         //    println!("prim mst: {:?}", graph.print_info(visited_node));
@@ -459,5 +462,28 @@ mod tests {
             })
         );
         assert_eq!(kruskal.next(), None);
+    }
+
+    #[test]
+    fn mst_error_directed() {
+        let mut g = Graph::<i32, &str>::new_directed();
+
+        let a = g.add_node(0, Some("a"));
+        let b = g.add_node(1, Some("b"));
+
+        g.add_edge(a, b, None);
+        assert!(g.mst_prim().is_err());
+    }
+
+    #[test]
+    fn mst_error_weighted() {
+        let mut g2 = Graph::<i32, &str>::new_undirected();
+
+        let a = g2.add_node(0, Some("a"));
+        let b = g2.add_node(1, Some("b"));
+
+        g2.add_edge(a, b, None);
+        let mut prim = g2.mst_prim().unwrap();
+        assert!(prim.do_prim(a).is_err());
     }
 }
